@@ -140,6 +140,9 @@ input.ans:focus{border-color:var(--ink);outline:none}
 .fb.ok{background:var(--ok-soft)} .fb.bad{background:var(--bad-soft)} .fb.info{background:var(--warn-soft)}
 .fb .h{font-family:var(--f-display);font-weight:700;font-size:17px;margin-bottom:4px}
 .fb.ok .h{color:var(--ok)} .fb.bad .h{color:var(--bad)} .fb.info .h{color:var(--warn)}
+.resu li .m,.resu p>.m{white-space:nowrap}
+.diag{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--fg);font-size:14px}
+.diag b{color:var(--warn)}
 details summary{cursor:pointer;font-weight:600;color:var(--ink);margin-top:8px}
 .statbar{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 .statbar b{color:var(--fg);font-variant-numeric:tabular-nums}
@@ -339,13 +342,17 @@ GEN.imagen=(d,opt)=>{const V={
       hint:'Ahora te dan la y: iguala y despeja x (es al revés que hallar la imagen).',
       sol:[`Te dan la imagen (la ${M('<i>y</i>')}), así que igualas: ${M(`${lin(a,b)} = ${neg(T)}`)}`,
         `${M(`${poly([a,0])} = ${neg(T-b)}`)}`,`${M(`${X} = ${fr(neg(T-b),neg(a))} = ${x.h()}`)}`]}},
+  fraccion(){const a=pick([2,4,6,8,-2,-4]),b=rnz(-6,6),c=ri(-6,6),cs=[a,b,c],k=q(pick([1,-1,1,3,-3]),pick([2,2,3])),r=evalPoly(cs,k);
+    return{q:`Si ${M(`<i>f</i>(${X}) = ${poly(cs)}`)}, calcula`,ex:`<i>f</i>${parQ(k).startsWith('(')?parQ(k):'('+k.h()+')'}`,kind:'num',label:'Resultado =',ans:r,chk:()=>a*k.v*k.v+b*k.v+c,
+      hint:'Con fracciones: eleva arriba y abajo al cuadrado, luego multiplica.',
+      sol:[`Reemplazo: ${M(subPoly(cs,k))}`,`${M(`${parQ(k)}<sup>2</sup> = ${k.pw(2).h()}`)}`,`Términos: ${M(sumStr(termVals(cs,k)))}`,`Sumo con común denominador: ${M(r.h())}${r.dec()}`]}},
   resta(){const b=rnz(-6,6),c=ri(-9,9),cs=[1,b,c],k1=-ri(1,4),k2=ri(1,4),r1=evalPoly(cs,k1),r2=evalPoly(cs,k2),r=r1.sub(r2);
     return{q:`Si ${M(`<i>f</i>(${X}) = ${poly(cs)}`)}, calcula`,ex:`<i>f</i>(${neg(k1)}) ${MINUS} <i>f</i>(${k2})`,kind:'num',label:'Resultado =',ans:r,chk:()=>(k1*k1+b*k1+c)-(k2*k2+b*k2+c),
       hint:'Calcula cada imagen por separado y al final resta.',
       sol:[`${M(`<i>f</i>(${neg(k1)}) = ${subPoly(cs,k1)} = ${r1.h()}`)}`,`${M(`<i>f</i>(${k2}) = ${subPoly(cs,k2)} = ${r2.h()}`)}`,
         `${M(`${parQ(r1)} ${MINUS} ${parQ(r2)} = ${r.h()}`)}`]}}
  };
- const pool=d===1?['lineal']:d===2?['lineal','cuad','racional']:['cuad','racional','preimagen','resta'];
+ const pool=d===1?['lineal']:d===2?['lineal','cuad','racional']:['cuad','racional','preimagen','resta','fraccion'];
  return V[opt||pick(pool)]()};
 
 GEN.dominio=(d,opt)=>{
@@ -385,7 +392,12 @@ GEN.interceptos=(d,opt)=>{const V={
       sol:[`Eje ${M(X)}: ${M(`<i>y</i> = 0`)} → ${M(`${neg(A)}${X} = ${neg(C)}`)} → ${M(`${X} = ${cx.h()}`)}`,
         `Eje ${M('<i>y</i>')}: ${M(`${X} = 0`)} → ${M(`${neg(B)}<i>y</i> = ${neg(C)}`)} → ${M(`<i>y</i> = ${cy.h()}`)}`]}}
  };
- const pool=d===1?['recta']:d===2?['recta','racional']:['racional','general','recta'];
+ V.cuad=()=>{let r1,r2;do{r1=rnz(-6,6);r2=rnz(-6,6)}while(r1===r2||r1===-r2);const cs=[1,-(r1+r2),r1*r2];
+   return mc({q:'¿Cuáles son los cortes con el eje x de',ex:`<i>y</i> = ${poly(cs)}`,right:M(`${X} = ${neg(Math.min(r1,r2))}  y  ${X} = ${neg(Math.max(r1,r2))}`),
+     wrong:[M(`${X} = ${neg(-Math.max(r1,r2))}  y  ${X} = ${neg(-Math.min(r1,r2))}`),M(`${X} = ${neg(r1*r2)}`),M(`Solo ${X} = ${neg(r1)}`)],
+     hint:`Pon y = 0 y factoriza: dos números que multipliquen ${neg(r1*r2)} y sumen ${neg(-(r1+r2))}.`,
+     sol:[`Corte x: ${M(`0 = ${poly(cs)}`)}`,`Factorizo: ${M(`(${lin(1,-r1)})(${lin(1,-r2)}) = 0`)}`,`Cada factor puede ser 0: ${M(`${X} = ${neg(r1)}`)} o ${M(`${X} = ${neg(r2)}`)}. Una cuadrática puede cortar dos veces el eje x.`,`(El corte con el eje y es ${M(`<i>y</i> = ${neg(r1*r2)}`)}.)`]})};
+ const pool=d===1?['recta']:d===2?['recta','racional']:['racional','general','recta','cuad'];
  return V[opt||pick(pool)]()};
 
 GEN.asintotas=(d,opt)=>{const V={
@@ -399,7 +411,7 @@ GEN.asintotas=(d,opt)=>{const V={
       hint:'Denominador = 0 y despeja. Puede dar fracción.',
       sol:[`Igualo el denominador a cero: ${M(`${lin(c,dd)} = 0`)}`,`${M(`${poly([c,0])} = ${neg(-dd)}`)} → ${M(`${X} = ${fr(neg(-dd),neg(c))} = ${v.h()}`)}`,
         `Verifico: el numerador en ${M(X+' = '+v.h())} da ${M(evalPoly([a,b],v).h())} ≠ 0 → no se cancela.`,`Asíntota vertical: ${M(`${X} = ${v.h()}`)}`]}},
-  dos(){const k=ri(2,7);let p;do{p=rnz(-9,9)}while(Math.abs(p)===k);
+  dos(){const k=ri(2,7);let p;do{p=rnz(-9,9)}while(Math.abs(p)===k||-p===k*k);
     return mc({q:'¿Cuáles son las asíntotas verticales de',ex:`<i>y</i> = ${fr(lin(1,p),poly([1,0,-k*k]))}`,right:M(`${X} = ${k}  y  ${X} = ${MINUS}${k}`),
       wrong:[M(`Solo ${X} = ${k}`),M(`${X} = ${k*k}`),M(`${X} = ${neg(-p)}`)],hint:`${X}² = ${k*k} tiene DOS soluciones.`,
       sol:[`Denominador = 0: ${M(`${X}<sup>2</sup> ${MINUS} ${k*k} = 0`)} → ${M(`${X}<sup>2</sup> = ${k*k}`)}`,`${M(`${X} = ${k}`)} o ${M(`${X} = ${MINUS}${k}`)} (la raíz tiene dos signos).`,
@@ -472,9 +484,15 @@ GEN.probabilidad=(d,opt)=>{const V={
   monedas(){const m=pick([2,3]),j=ri(m===2?1:1,m===2?1:2);const C=m===2?2:3,r=q(C,2**m);const tot=2**m;
     const lista=m===2?'CC, CS, SC, SS':'CCC, CCS, CSC, SCC, CSS, SCS, SSC, SSS';
     return{q:`Se lanzan ${m} monedas. ¿Probabilidad de obtener exactamente ${j} cara${j>1?'s':''}?`,kind:'num',label:'P =',ans:r,hint:`Hay 2^${m} = ${tot} resultados. Escríbelos.`,
-      sol:[`Resultados: ${lista} (${tot}).`,`Con exactamente ${j} cara${j>1?'s':''}: ${C}.`,`${M(`P = ${fr(C,tot)} = ${r.h()}`)}`]}}
+      sol:[`Resultados: ${lista} (${tot}).`,`Con exactamente ${j} cara${j>1?'s':''}: ${C}.`,`${M(`P = ${fr(C,tot)} = ${r.h()}`)}`]}},
+  alMenos(){if(Math.random()<.5){const m=pick([2,3,4]),tot=2**m,r=q(tot-1,tot);
+      return{q:`Se lanzan ${m} monedas. ¿Probabilidad de obtener <b>al menos una</b> cara?`,kind:'num',label:'P =',ans:r,hint:'"Al menos una" es lo contrario de "ninguna". Usa 1 − P(ninguna).',
+        sol:[`Contrario de "al menos una cara": que todas sean sello. Solo hay 1 caso de ${tot}.`,`${M(`P(ninguna) = ${fr(1,tot)}`)}`,`${M(`P = 1 ${MINUS} ${fr(1,tot)} = ${r.h()}`)}`]}}
+    const n=pick([1,2,6]),r=q(36-25,36);
+    return{q:`Se lanza un dado dos veces. ¿Probabilidad de que salga <b>al menos un</b> ${n}?`,kind:'num',label:'P =',ans:r,hint:'Calcula la probabilidad de que NO salga en ninguno de los dos lanzamientos y réstala de 1.',
+      sol:[`Que no salga ${n} en un lanzamiento: ${M(fr(5,6))}. En los dos: ${M(`${fr(5,6)} · ${fr(5,6)} = ${fr(25,36)}`)}`,`${M(`P = 1 ${MINUS} ${fr(25,36)} = ${fr(11,36)}`)}${r.dec()}`]}}
  };
- const pool=d===1?['grupo']:d===2?['grupo','dado','urna']:['dosDados','sinRep','monedas','urna'];
+ const pool=d===1?['grupo']:d===2?['grupo','dado','urna']:['dosDados','sinRep','monedas','urna','alMenos'];
  return V[opt||pick(pool)]()};
 
 GEN.limsus=(d,opt)=>{const L=a=>`lim<sub>${X} → ${neg(a)}</sub> `;const V={
@@ -694,6 +712,30 @@ function ansHtml(p){if(p.kind==='mc')return p.opts[p.correct];
   if(p.kind==='rel')return p.ans.rel==='R'?'Todos los reales (ℝ)':M(`${X} ${RELSYM[p.ans.rel]} ${p.ans.v.h()}`)}
 function correctAns(p){if(p.kind==='mc')return{i:p.correct};if(p.kind==='num')return{n:{v:p.ans.v,exact:true}};
   if(p.kind==='pair')return{n:p.ans.map(x=>({v:x.v,exact:true}))};return{rel:p.ans.rel,n:p.ans.v?{v:p.ans.v.v,exact:true}:null}}
+function diagnose(p,a){if(!a||p.kind==='mc'||grade(p,a))return'';
+  const eq=(n,t)=>!!n&&Math.abs(n.v-t)<1e-6;
+  if(p.kind==='num'){const t=p.ans.v;if(!a.n||t===0)return'';
+    if(eq(a.n,-t))return 'El número está bien, pero el <b>signo</b> quedó al revés. Revisa los menos al pasar términos de un lado al otro.';
+    if(eq(a.n,1/t))return 'Volteaste la fracción: pusiste el denominador arriba.';
+    if(eq(a.n,-1/t))return 'Volteaste la fracción y además el signo.';
+    return ''}
+  if(p.kind==='pair'){if(a.n.some(x=>!x))return'';const x=p.ans[0].v,y=p.ans[1].v;
+    if(x!==y&&eq(a.n[0],y)&&eq(a.n[1],x))return 'Intercambiaste los cortes. Para el eje x se hace y = 0; para el eje y se hace x = 0.';
+    if(x!==0&&eq(a.n[0],-x))return 'El corte con el eje x tiene el signo al revés: al pasar el número al otro lado, cambia de signo.';
+    if(y!==0&&eq(a.n[1],-y))return 'El corte con el eje y tiene el signo al revés: es el número que queda al reemplazar x = 0, con su signo.';
+    return ''}
+  const r=p.ans.rel;
+  if(r==='R')return a.rel!=='R'?'Esta no tiene restricción. Revisa: ¿es raíz cúbica? ¿el denominador puede dar 0 de verdad?':'';
+  if(a.rel==='R')return 'Sí hay restricción: hay una raíz par, un logaritmo o un denominador que puede valer 0.';
+  const vOk=eq(a.n,p.ans.v.v);
+  if(vOk&&r!=='!='&&a.rel===FLIP[r])return 'El número está bien, pero la desigualdad quedó al revés. Si dividiste entre un negativo, hay que voltearla.';
+  if(vOk&&((r==='>'&&a.rel==='>=')||(r==='<'&&a.rel==='<=')))return 'Casi. Aquí va estricto (> o <): el logaritmo y la raíz en el denominador no aceptan el 0.';
+  if(vOk&&((r==='>='&&a.rel==='>')||(r==='<='&&a.rel==='<')))return 'Casi. En una raíz cuadrada el 0 sí vale (√0 = 0), así que va ≥ o ≤.';
+  if(vOk&&r==='!=')return 'En una fracción la condición es ≠: solo se quita ese valor, todo lo demás sirve.';
+  if(vOk&&a.rel==='!=')return 'Esto no es una fracción: con raíz la condición es ≥ 0 y con logaritmo es > 0.';
+  if(eq(a.n,-p.ans.v.v))return 'El signo del número quedó al revés al despejar.';
+  return ''}
+const diagHtml=(p,a)=>{const d=diagnose(p,a);return d?`<div class="diag"><b>Dónde está el error:</b> ${d}</div>`:''};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 
 /* ============ widget de respuesta ============ */
@@ -738,6 +780,7 @@ function nav(){
   h+=`<div class="lbl">Al final</div>`;
   h+=`<a class="step special ${cur==='ronda-final'?'on':''}" href="#ronda-final"><span class="no">★</span><span>Ronda final exigente<br><span class="st">Todo mezclado · récord ${S.fin.best}</span></span></a>`;
   h+=`<a class="step special ${cur==='simulacro'?'on':''}" href="#simulacro"><span class="no">✎</span><span>Simulacro del examen<br><span class="st">${S.sims.length?`Último: ${S.sims[S.sims.length-1].n.toFixed(1)} / 5.0`:'Con tiempo y nota'}</span></span></a>`;
+  h+=`<a class="step special ${cur==='resumen'?'on':''}" href="#resumen"><span class="no">≡</span><span>Resumen para entrar<br><span class="st">Una pantalla, 5 minutos</span></span></a>`;
   $('#ruta').innerHTML=h;
   const md=LEVELS.filter(l=>st(l.id).m).length;$('#pMast').textContent=`${md}/${LEVELS.length} dominados`;$('#pMast').className='pill'+(md===LEVELS.length?' ok':'');
   const on=$('#ruta .on');if(on&&window.matchMedia('(max-width:860px)').matches)on.scrollIntoView({block:'nearest',inline:'center'});
@@ -757,6 +800,7 @@ function viewHome(){
     <div class="row" style="margin-top:14px">
       ${next?`<a class="btn pri big" href="#${next.id}">${st(next.id).t.some(x=>x)?'Seguir':'Empezar'}: ${next.n}. ${next.sh}</a>`:`<a class="btn pri big" href="#simulacro">Todo dominado · hacer simulacro</a>`}
       <a class="btn big" href="#simulacro">Ir al simulacro</a>
+      <a class="btn big ghost" href="#resumen">Resumen para entrar</a>
     </div>
   </section>
   <section class="grid2">
@@ -765,7 +809,7 @@ function viewHome(){
         <li><span><b>Ruta 1 → 11</b> (unos 90 min). En cada nivel: Aprende, y luego 3 seguidas bien en Exigente.</span></li>
         <li><span><b>Ronda final</b>: preguntas exigentes de todo, mezcladas. Lo que falles vuelve a salir.</span></li>
         <li><span><b>Simulacros</b> de 15 preguntas en 35 min. Repite hasta sacar 4.5 o más dos veces seguidas.</span></li>
-        <li><span>Duerme. Antes de entrar, lee solo la pestaña "Teoría del examen".</span></li>
+        <li><span>Duerme. Antes de entrar, lee solo el <a href="#resumen">Resumen para entrar</a>.</span></li>
       </ol></div>
     <div class="card"><h3 style="margin-bottom:10px">Cómo vas</h3>
       <div class="statbar" style="margin-bottom:12px"><span>Dominados <b>${LEVELS.filter(l=>st(l.id).m).length}/${LEVELS.length}</b></span><span>Simulacros <b>${S.sims.length}</b></span><span>Mejor nota <b>${best!=null?best.toFixed(1):'—'}</b></span><span>Récord ronda final <b>${S.fin.best}</b></span></div>
@@ -838,7 +882,7 @@ function viewPractice(body,id){
       if(d===3){s.k=ok?s.k+1:0;if(s.k>=NEED_STREAK&&!s.m){s.m=true;msg=`<p style="margin:8px 0 0"><b>Nivel dominado.</b> ${nx?`Sigue con <a href="#${nx.id}">${nx.n}. ${nx.sh}</a>.`:'Pasa a la <a href="#ronda-final">ronda final</a>.'}</p>`}}
       save();bar();nav();
       $('#fbx').innerHTML=`<div class="fb ${ok?'ok':gaveUp?'info':'bad'}"><div class="h">${ok?'Correcto':gaveUp?'Así se hace':'No es así'}</div>
-        ${ok?'':`<div>Respuesta correcta: ${ansHtml(p)}</div>`}${a&&!ok&&!gaveUp?`<div class="muted" style="font-size:13px">Tú pusiste: ${a.raw}</div>`:''}
+        ${ok?'':`<div>Respuesta correcta: ${ansHtml(p)}</div>`}${a&&!ok&&!gaveUp?`<div class="muted" style="font-size:13px">Tú pusiste: ${a.raw}</div>${diagHtml(p,a)}`:''}
         ${ok?`<details><summary>Ver el procedimiento</summary>${solHtml(p)}</details>`:`<div style="margin-top:10px"><b>Procedimiento:</b>${solHtml(p)}</div>`}${msg}</div>`;
       $('#acts').innerHTML=`<button type="button" class="btn pri" id="nxt">Siguiente ejercicio →</button>${s.m&&nx?`<a class="btn" href="#${nx.id}">Siguiente nivel</a>`:''}`;
       $('#nxt').addEventListener('click',next);$('#nxt').focus()};
@@ -854,6 +898,32 @@ function viewPractice(body,id){
 }
 const genKey=id=>({'limites-sustitucion':'limsus','limites-indeterminados':'lim00'})[id]||id;
 
+/* resumen para antes de entrar */
+function viewResumen(){
+  const B=(t,h)=>`<div class="card sec"><h3>${t}</h3>${h}</div>`;
+  main.innerHTML=`<section class="card flat"><div class="eyebrow">Para leer antes de entrar · 5 minutos</div><h1 style="font-size:26px;margin:6px 0 6px">Resumen del examen</h1>
+   <p class="lead muted" style="margin:0">Todo lo que tienes que recordar, en una sola pantalla. Si dudas de algo, toca el nombre del tema.</p></section>
+   <div class="grid2 resu">
+   ${B('<a href="#tipos">Tipos de función</a>',`<p style="margin:0 0 6px">Mira <b>dónde está la x</b>:</p><ul class="traps" style="padding-left:18px">
+     <li>en el denominador → racional</li><li>dentro de una raíz → radical: ${M('<i>y</i> = '+sqrt('<i>x</i> + 1'))}</li><li>entre barras → valor absoluto: ${M('<i>y</i> = |<i>x</i> − 3|')}</li>
+     <li>en el exponente → exponencial · dentro de log → logarítmica</li><li>si no: exponente mayor 0 constante, 1 lineal (${M('3<i>x</i>')}) o afín (${M('3<i>x</i> + 2')}), 2 cuadrática, 3+ polinómica</li></ul>`)}
+   ${B('<a href="#imagen">Imagen</a>',`<p style="margin:0">Reemplazo la x por el número <b>entre paréntesis</b> y opero: potencias, multiplicaciones, sumas. ${M('<i>y</i> = 4(3) − 5 = 7')}. Si me dan la y y piden la x: igualo y despejo.</p>`)}
+   ${B('<a href="#dominio">Dominio</a>',`<div class="tw"><table class="t"><tbody>
+     <tr><td>Raíz par</td><td class="m">□ ≥ 0</td></tr><tr><td>Logaritmo</td><td class="m">□ &gt; 0</td></tr><tr><td>Fracción</td><td class="m">denominador ≠ 0</td></tr>
+     <tr><td>Raíz abajo</td><td class="m">□ &gt; 0</td></tr><tr><td>Polinomio, ∛, <i>x</i>² + <i>c</i> abajo</td><td>todos los reales</td></tr></tbody></table></div>
+     <p style="margin:8px 0 0">Si divido entre un <b>negativo</b>, volteo la desigualdad.</p>`)}
+   ${B('<a href="#interceptos">Interceptos</a>',`<p style="margin:0">Eje x: ${M('<i>y</i> = 0')} y despejo → ${M('(<i>x</i>, 0)')}. Eje y: ${M('<i>x</i> = 0')} → ${M('(0, <i>y</i>)')}. En fracción: corte x es numerador = 0.<br>${M('<i>y</i> = 4<i>x</i> + 5')} → ${M('(−'+fr(5,4)+', 0)')} y ${M('(0, 5)')}.</p>`)}
+   ${B('<a href="#asintotas">Asíntota vertical</a>',`<ol class="steps"><li>Denominador = 0.</li><li>Despejo x.</li><li>Verifico que el numerador no dé 0 (si se cancela, es hueco).</li><li>Escribo ${M('<i>x</i> = …')}</li></ol>
+     <p style="margin:8px 0 0">${M('<i>y</i> = '+fr('7<i>x</i> − 2','4<i>x</i> − 2'))} → ${M('<i>x</i> = '+fr(1,2))}. Horizontal (mismo grado): ${M('<i>y</i> = '+fr(7,4))}.</p>`)}
+   ${B('<a href="#sucesiones">Sucesiones</a>',`<p style="margin:0">Reemplazo <b>todas</b> las n. ${M(an(5)+' = '+fr('5(5) − 4','7(5) − 1')+' = '+fr(21,34))}. Aritmética: ${M(an('<i>n</i>')+' = '+an(1)+' + (<i>n</i> − 1)<i>d</i>')}. Lugar de un término: igualo y despejo n.</p>`)}
+   ${B('<a href="#probabilidad">Probabilidad</a>',`<p style="margin:0">${M('P = '+fr('favorables','posibles'))}, entre 0 y 1. "Los otros" = total − los que sí. ${M(fr(5,30)+' = '+fr(1,6))}. Dos dados: 36. Tres monedas: 8. ${M('P(no A) = 1 − P(A)')}.</p>`)}
+   ${B('<a href="#limites-indeterminados">Límites</a>',`<ol class="steps"><li>Sustituyo. Número → ese es el límite.</li><li>${M('k/0')} → ∞ (no es indeterminado).</li><li>${M('0/0')} → factorizo o uso la conjugada, cancelo ${M('(<i>x</i> − <i>a</i>)')} y sustituyo otra vez.</li></ol>
+     <p style="margin:8px 0 0">${M('<i>a</i>² − <i>b</i>² = (<i>a</i> − <i>b</i>)(<i>a</i> + <i>b</i>)')} · trinomio: suman b y multiplican c · ${M('<i>x</i>³ − <i>a</i>³ = (<i>x</i> − <i>a</i>)(<i>x</i>² + <i>ax</i> + <i>a</i>²)')}</p>
+     <p style="margin:8px 0 0"><b>Las 7 indeterminadas:</b> ${M(INDET.join(', '))}</p>`)}
+   </div>
+   <div class="card row" style="justify-content:space-between"><span class="muted">Teoría escrita con respuesta modelo:</span><a class="btn pri" href="#teoria">Ir a Teoría del examen</a></div>`;
+}
+
 /* ronda final */
 let FIN={streak:0,n:0,ok:0,redo:[]};
 function viewFinal(){
@@ -868,7 +938,7 @@ function viewFinal(){
     card.innerHTML=`<div class="tag">${l.n}. ${l.t}</div>${problemHtml(p,uid)}<div class="row" style="margin-top:14px" id="facts"><button type="button" class="btn pri" id="fchk">Revisar</button><button type="button" class="btn ghost" id="fidk">No sé</button></div><div id="ffb"></div>`;
     const done=(a,gave)=>{if(card.dataset.lock)return;const ok=!gave&&grade(p,a);lockShow(card,p,a);FIN.n++;if(ok){FIN.ok++;FIN.streak++;if(FIN.streak>S.fin.best){S.fin.best=FIN.streak;save()}}else{FIN.streak=0;FIN.redo.push({id,at:FIN.n+2})}
       bar();nav();
-      $('#ffb').innerHTML=`<div class="fb ${ok?'ok':'bad'}"><div class="h">${ok?'Correcto':'Repasa esto'}</div>${ok?'':`<div>Respuesta: ${ansHtml(p)}</div>`}${ok?`<details><summary>Ver el procedimiento</summary>${solHtml(p)}</details>`:solHtml(p)}${ok?'':`<p style="margin:8px 0 0;font-size:13px">Si no te quedó claro, vuelve a <a href="#${id}">${l.sh}</a>.</p>`}</div>`;
+      $('#ffb').innerHTML=`<div class="fb ${ok?'ok':'bad'}"><div class="h">${ok?'Correcto':'Repasa esto'}</div>${ok?'':`<div>Respuesta: ${ansHtml(p)}</div>${gave?'':diagHtml(p,a)}`}${ok?`<details><summary>Ver el procedimiento</summary>${solHtml(p)}</details>`:solHtml(p)}${ok?'':`<p style="margin:8px 0 0;font-size:13px">Si no te quedó claro, vuelve a <a href="#${id}">${l.sh}</a>.</p>`}</div>`;
       $('#facts').innerHTML=`<button type="button" class="btn pri" id="fn">Siguiente →</button>`;$('#fn').addEventListener('click',next);$('#fn').focus()};
     const check=()=>{const a=readAns(card,p);if(!a||(p.kind==='num'&&!a.n)||(p.kind==='pair'&&a.n.some(x=>!x))||(p.kind==='rel'&&a.rel!=='R'&&!a.n)){$('#ffb').innerHTML=`<div class="fb info"><div class="h">Falta tu respuesta</div>Escribe solo el número (7, −3, 1/2) o elige una opción.</div>`;return}done(a,false)};
     wire(card,p,check);$('#fchk').addEventListener('click',check);$('#fidk').addEventListener('click',()=>done(null,true))};
@@ -933,7 +1003,7 @@ function finishSim(){clearInterval(TICK);if(SIM.done)return;SIM.done=true;
      ${weak.length?`<p style="margin:14px 0 0"><b>Repasa:</b> ${weak.map(l=>`<a href="#${l.id}">${l.sh}</a>`).join(' · ')}</p>`:`<p style="margin:14px 0 0"><b>Perfecto.</b> Haz uno exigente o descansa.</p>`}</section>
    <section class="card"><h3>Revisión pregunta por pregunta</h3>${SIM.items.map((x,j)=>`<div class="res-item"><div class="row" style="justify-content:space-between"><span class="tag">${j+1}. ${LV[x.id].t}</span><span class="pill ${x.ok?'ok':'bad'}">${x.ok?'Bien':'Mal'}</span></div>
      <div style="margin-top:6px">${x.p.q}</div>${x.p.ex?`<div class="m" style="font-size:19px;margin:6px 0;overflow-x:auto">${x.p.ex}</div>`:''}
-     <div style="font-size:14px">Tu respuesta: ${x.a?x.a.raw:'<i class="muted">sin responder</i>'}</div>${x.ok?'':`<div style="font-size:14px">Correcta: ${ansHtml(x.p)}</div>`}
+     <div style="font-size:14px">Tu respuesta: ${x.a?x.a.raw:'<i class="muted">sin responder</i>'}</div>${x.ok?'':`<div style="font-size:14px">Correcta: ${ansHtml(x.p)}</div>${diagHtml(x.p,x.a)}`}
      <details ${x.ok?'':'open'}><summary>Procedimiento</summary>${solHtml(x.p)}</details></div>`).join('')}</section>`;
   $('#again').addEventListener('click',()=>startSim(SIM.hard));window.scrollTo({top:0});
 }
@@ -945,6 +1015,7 @@ function route(){
   if(h!=='simulacro')clearInterval(TICK);
   if(h==='inicio')viewHome();
   else if(h==='ronda-final')viewFinal();
+  else if(h==='resumen')viewResumen();
   else if(h==='simulacro'){if(SIM&&!SIM.done)renderSim();else viewSimStart()}
   else if(h.endsWith('-practica')&&LV[h.replace(/-practica$/,'')])viewLevel(h.replace(/-practica$/,''),'p');
   else if(LV[h])viewLevel(h,'a');
