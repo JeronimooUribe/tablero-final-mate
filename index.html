@@ -1,0 +1,956 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tablero Final de Matemáticas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: cuaderno cuadriculado. Ruta de niveles a la izquierda (arriba en el celular), mesa de trabajo a la derecha. Modo oscuro = pizarrón. */
+:root{
+  --bg:#F3F5F9; --paper:#FFFFFF; --grid:rgba(43,71,201,.055); --fg:#14202E; --muted:#5A6676; --line:#D8DEE8;
+  --ink:#2B47C9; --ink-soft:#E6EBFB; --on-ink:#FFFFFF;
+  --ok:#14744B; --ok-soft:#E0F2E8; --bad:#B3302A; --bad-soft:#FBE6E4; --warn:#8F5B00; --warn-soft:#FFF1D6;
+  --f-display:"Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Inter", "Segoe UI", system-ui, sans-serif;
+  --f-math:"STIX Two Text", "Cambria Math", "Cambria", Georgia, serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D1512; --paper:#14201B; --grid:rgba(255,255,255,.035); --fg:#E7EEEA; --muted:#98A79F; --line:#26362F;
+  --ink:#93B2FF; --ink-soft:#1B2A43; --on-ink:#0D1512;
+  --ok:#5DD49B; --ok-soft:#113226; --bad:#FF8C82; --bad-soft:#3A1917; --warn:#F3C063; --warn-soft:#3A2B0F; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D1512; --paper:#14201B; --grid:rgba(255,255,255,.035); --fg:#E7EEEA; --muted:#98A79F; --line:#26362F;
+  --ink:#93B2FF; --ink-soft:#1B2A43; --on-ink:#0D1512;
+  --ok:#5DD49B; --ok-soft:#113226; --bad:#FF8C82; --bad-soft:#3A1917; --warn:#F3C063; --warn-soft:#3A2B0F; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.2}
+a{color:var(--ink)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--paper);border-bottom:1px solid var(--line);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.top-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:700;font-size:17px;text-decoration:none;color:var(--fg);display:flex;align-items:center;gap:8px}
+.brand .lim{font-family:var(--f-math);font-style:italic;font-weight:400;color:var(--ink);font-size:20px}
+.top .sp{flex:1}
+.clock{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.clock b{color:var(--fg)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--ink-soft);color:var(--ink);white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+
+.shell{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:270px minmax(0,1fr);gap:24px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 80px}
+.ruta{position:sticky;top:calc(env(safe-area-inset-top,0px) + 64px);align-self:start;display:flex;flex-direction:column;gap:2px;max-height:calc(100vh - 90px);overflow:auto}
+.ruta .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 10px 4px}
+.step{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;text-decoration:none;color:var(--fg);font-size:14px}
+.step:hover{background:var(--ink-soft)}
+.step.on{background:var(--ink);color:var(--on-ink)}
+.step .no{font-family:var(--f-display);font-weight:600;font-size:12px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);font-variant-numeric:tabular-nums}
+.step.done .no{background:var(--ok);border-color:var(--ok);color:var(--paper)}
+.step.on .no{border-color:var(--on-ink)}
+.step .st{font-size:11px;color:var(--muted)} .step.on .st{color:var(--on-ink);opacity:.85}
+.step.special .no{border-style:dashed}
+
+@media (max-width:860px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:14px;padding-block:12px 80px}
+  .ruta{position:static;flex-direction:row;overflow-x:auto;max-height:none;padding-bottom:6px;gap:6px;scrollbar-width:thin}
+  .ruta .lbl{display:none}
+  .step{grid-template-columns:24px auto;white-space:nowrap;border:1px solid var(--line);background:var(--paper)}
+  .step .st{display:none}
+  .top .clock{order:3;width:100%}
+}
+
+main{min-width:0;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:20px}
+.card.flat{background:transparent;border:none;padding:0}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lead{font-size:17px;max-width:65ch}
+.muted{color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:700px){.grid2{grid-template-columns:minmax(0,1fr)}}
+
+.btn{border:1px solid var(--line);background:var(--paper);padding:9px 16px;border-radius:8px;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--fg)}
+.btn:hover{border-color:var(--ink)}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent}
+.btn.big{padding:12px 20px;font-size:15px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px;background:var(--bg);flex-wrap:wrap}
+.seg button{border:none;background:transparent;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* matemática */
+.m{font-family:var(--f-math);font-size:1.12em;white-space:normal}
+.m i,.mi{font-family:var(--f-math);font-style:italic}
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.9em;margin:0 .12em;line-height:1.25}
+.fr>span{padding:0 .22em;white-space:nowrap}
+.fr>span:first-child{border-bottom:1.4px solid currentColor;padding-bottom:1px}
+.sq{white-space:nowrap;display:inline-flex;align-items:baseline}
+.sq .rad{border-top:1.4px solid currentColor;padding:1px .15em 0;margin-left:.02em}
+.sq .idx{font-size:.62em;margin-right:-.35em;transform:translateY(-.55em);display:inline-block}
+.bigx{font-size:24px;padding:14px 0 6px;overflow-x:auto;line-height:1.6}
+
+/* aprende */
+.sec h3{font-size:16px;margin-bottom:8px}
+.idea{font-size:18px;font-family:var(--f-display);font-weight:500;line-height:1.4;max-width:60ch}
+.recipe{counter-reset:r;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+.recipe li{counter-increment:r;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start}
+.recipe li::before{content:counter(r);font-family:var(--f-display);font-weight:700;width:26px;height:26px;border-radius:7px;background:var(--ink-soft);color:var(--ink);display:grid;place-items:center;font-size:13px}
+.examen{background:var(--ink-soft);border-radius:10px;padding:14px 16px}
+.examen .eyebrow{color:var(--ink)}
+.traps{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.traps li::marker{color:var(--bad)}
+table.t{border-collapse:collapse;width:100%;font-size:14px}
+table.t th,table.t td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tw{overflow-x:auto}
+.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+.steps li{padding-left:4px}
+.reveal-steps li[hidden]{display:none}
+.need a{margin-right:6px}
+
+/* practica */
+.prob .q{font-size:16px;font-weight:500}
+.ansbox{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.field{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.field label{font-weight:600;min-width:0}
+input.ans{font-family:var(--f-math);font-size:19px;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);width:180px;max-width:100%}
+input.ans:focus{border-color:var(--ink);outline:none}
+.keys{display:flex;gap:6px}
+.keys button{width:40px;height:36px;border:1px solid var(--line);background:var(--bg);border-radius:7px;font-family:var(--f-math);font-size:18px}
+.mc{display:flex;flex-direction:column;gap:8px}
+.opt{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;text-align:left;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--paper)}
+.opt:hover{border-color:var(--ink)}
+.opt[aria-checked="true"]{border-color:var(--ink);background:var(--ink-soft)}
+.opt .k{font-family:var(--f-display);font-weight:700;font-size:13px;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;background:var(--bg)}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)} .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.relrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.relrow .seg button{font-family:var(--f-math);font-size:17px}
+.relrow .seg button[data-r="R"]{font-family:var(--f-body);font-size:13px}
+.fb{border-radius:10px;padding:14px 16px;margin-top:14px}
+.fb.ok{background:var(--ok-soft)} .fb.bad{background:var(--bad-soft)} .fb.info{background:var(--warn-soft)}
+.fb .h{font-family:var(--f-display);font-weight:700;font-size:17px;margin-bottom:4px}
+.fb.ok .h{color:var(--ok)} .fb.bad .h{color:var(--bad)} .fb.info .h{color:var(--warn)}
+details summary{cursor:pointer;font-weight:600;color:var(--ink);margin-top:8px}
+.statbar{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.statbar b{color:var(--fg);font-variant-numeric:tabular-nums}
+.dots{display:flex;gap:6px;flex-wrap:wrap}
+.dot{width:30px;height:30px;border-radius:7px;border:1.5px solid var(--line);background:var(--paper);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.dot.ans{background:var(--ink-soft);border-color:var(--ink)}
+.dot.cur{outline:2px solid var(--ink);outline-offset:1px}
+.dot.r{background:var(--ok-soft);border-color:var(--ok)} .dot.w{background:var(--bad-soft);border-color:var(--bad)}
+.nota{font-family:var(--f-display);font-size:56px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--ok)}
+.res-item{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.tag{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.timer{font-family:var(--f-display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
+.timer.low{color:var(--bad)}
+.cuaderno .qa{border-top:1px solid var(--line);padding:12px 0}
+.cuaderno .qa:first-child{border-top:none}
+.cuaderno .mod{margin-top:8px;padding:10px 12px;border-radius:8px;background:var(--ok-soft)}
+@media (prefers-reduced-motion:no-preference){
+  .fb,.prob{animation:in .18s ease-out}
+  @keyframes in{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
+}
+</style>
+
+<header class="top"><div class="top-in">
+  <a class="brand" href="#inicio"><span class="lim">f(x)</span> Tablero Final</a>
+  <span class="pill" id="pMast">0/11 dominados</span>
+  <span class="sp"></span>
+  <span class="clock" id="clock"></span>
+</div></header>
+<div class="shell">
+  <nav class="ruta" id="ruta" aria-label="Ruta de estudio"></nav>
+  <main id="main"></main>
+</div>
+
+<script>
+"use strict";
+/* ============ utilidades ============ */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const rnz=(a,b)=>{let v;do{v=ri(a,b)}while(v===0);return v};
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1};
+const MINUS='−';
+class Q{
+  constructor(n,d=1){if(d===0)throw new Error('div0');if(d<0){n=-n;d=-d}const g=gcd(n,d);this.n=n/g;this.d=d/g}
+  static of(x){return x instanceof Q?x:new Q(x,1)}
+  add(o){o=Q.of(o);return new Q(this.n*o.d+o.n*this.d,this.d*o.d)}
+  sub(o){o=Q.of(o);return new Q(this.n*o.d-o.n*this.d,this.d*o.d)}
+  mul(o){o=Q.of(o);return new Q(this.n*o.n,this.d*o.d)}
+  div(o){o=Q.of(o);return new Q(this.n*o.d,this.d*o.n)}
+  pw(k){let r=new Q(1);for(let i=0;i<k;i++)r=r.mul(this);return r}
+  abs(){return new Q(Math.abs(this.n),this.d)}
+  get v(){return this.n/this.d}
+  h(){return this.d===1?neg(this.n):(this.n<0?MINUS:'')+fr(Math.abs(this.n),this.d)}
+  dec(){return this.d===1?'':' ≈ '+(+this.v.toFixed(3)).toString().replace('-',MINUS)}
+}
+const q=(n,d=1)=>new Q(n,d);
+const neg=n=>n<0?MINUS+Math.abs(n):''+n;
+const X='<i>x</i>', NN='<i>n</i>';
+const sup=(b,e)=>`${b}<sup>${e}</sup>`;
+const fr=(a,b)=>`<span class="fr"><span>${a}</span><span>${b}</span></span>`;
+const sqrt=(x,idx)=>`<span class="sq">${idx?`<span class="idx">${idx}</span>`:''}√<span class="rad">${x}</span></span>`;
+const M=s=>`<span class="m">${s}</span>`;
+const an=k=>`<i>a</i><sub>${k}</sub>`;
+const parQ=v=>{v=Q.of(v);return (v.n<0||v.d!==1)?`(${v.h()})`:v.h()};
+function poly(cs,v=X){const deg=cs.length-1;let out='';
+  cs.forEach((c,i)=>{const p=deg-i;if(c===0)return;const first=out==='';const a=Math.abs(c);
+    const s=c<0?(first?MINUS:' '+MINUS+' '):(first?'':' + ');
+    const vv=p===0?'':p===1?v:sup(v,p);const co=(p>0&&a===1)?'':''+a;out+=s+co+vv});
+  return out||'0'}
+const lin=(a,b,v=X)=>poly([a,b],v);
+function evalPoly(cs,xv){xv=Q.of(xv);const deg=cs.length-1;let r=q(0);cs.forEach((c,i)=>{r=r.add(xv.pw(deg-i).mul(c))});return r}
+function subPoly(cs,xv){const deg=cs.length-1;const xs=parQ(xv);let out='';
+  cs.forEach((c,i)=>{const p=deg-i;if(c===0)return;const first=out==='';const a=Math.abs(c);
+    const s=c<0?(first?MINUS:' '+MINUS+' '):(first?'':' + ');
+    const body=p===0?''+a:(a===1?'':a+'·')+(p===1?xs:sup(xs,p));out+=s+body});return out||'0'}
+function sumStr(list){let out='';list.forEach(v=>{v=Q.of(v);if(out==='')out=v.h();else out+=v.n<0?' '+MINUS+' '+v.abs().h():' + '+v.h()});return out||'0'}
+const termVals=(cs,xv)=>{const deg=cs.length-1;return cs.map((c,i)=>Q.of(xv).pw(deg-i).mul(c)).filter((v,i)=>cs[i]!==0)};
+const RELSYM={'>=':'≥','<=':'≤','>':'>','<':'<','!=':'≠','R':'Todos los reales'};
+const FLIP={'>=':'<=','<=':'>=','>':'<','<':'>','!=':'!='};
+const ivl=(rel,v)=>({'>=':`[${v}, ∞)`,'>':`(${v}, ∞)`,'<=':`(${MINUS}∞, ${v}]`,'<':`(${MINUS}∞, ${v})`,'!=':`ℝ ${MINUS} {${v}}`})[rel];
+const yt=s=>'https://www.youtube.com/results?search_query='+encodeURIComponent(s);
+function mc(o){const all=[{h:o.right,ok:1},...o.wrong.map(h=>({h,ok:0}))];const sh=shuffle(all);
+  return Object.assign({kind:'mc',opts:sh.map(x=>x.h),correct:sh.findIndex(x=>x.ok)},o)}
+
+/* ============ generadores (d = 1 básico, 2 medio, 3 exigente) ============ */
+const GEN={};
+
+GEN.bases=(d,opt)=>{const V={
+  despeje(){const a=pick([2,3,4,5,6,7,8,9])*pick([1,-1]),b=rnz(-12,12),c=ri(-15,15),x=q(c-b,a);
+    return{q:`Despeja ${M(X)}:`,ex:`${lin(a,b)} = ${neg(c)}`,kind:'num',label:`${M(X)} =`,ans:x,
+      hint:'Primero mueve el número que suma o resta; después divide entre el número que acompaña a la x.',
+      sol:[`Lo que suma o resta pasa al otro lado con el signo contrario: ${M(`${poly([a,0])} = ${neg(c)} ${b>0?MINUS+' '+b:'+ '+(-b)} = ${neg(c-b)}`)}`,
+        `Lo que multiplica pasa a dividir con su mismo signo: ${M(`${X} = ${fr(neg(c-b),neg(a))} = ${x.h()}`)}`]}},
+  fracc(){const a=ri(1,7),b=ri(2,9),c=ri(1,7),e=ri(2,9),op=pick([1,-1]);const r=q(a,b).add(q(op*c,e));const nu=a*e+op*c*b;
+    return{q:'Calcula y simplifica:',ex:`${fr(a,b)} ${op>0?'+':MINUS} ${fr(c,e)}`,kind:'num',label:'Resultado =',ans:r,
+      hint:'Multiplica en cruz: (a·d ± c·b) / (b·d). Luego simplifica.',
+      sol:[`Numerador en cruz: ${M(`${a}·${e} ${op>0?'+':MINUS} ${c}·${b} = ${neg(nu)}`)}. Denominador: ${M(`${b}·${e} = ${b*e}`)}`,
+        `Queda ${M(fr(neg(nu),b*e))}; simplificando: ${M(r.h())}`]}},
+  negs(){const k=ri(1,4),a=rnz(-3,4),b=rnz(-6,6),c=ri(-9,9),cs=[a,b,c],xv=-k,r=evalPoly(cs,xv);
+    return{q:'Calcula (ojo con los signos):',ex:subPoly(cs,xv),kind:'num',label:'Resultado =',ans:r,
+      hint:`(${MINUS}${k})² es positivo: ${k*k}. Menos por menos da más.`,
+      sol:[`Potencia primero: ${M(`(${MINUS}${k})<sup>2</sup> = ${k*k}`)} (un negativo al cuadrado da positivo).`,
+        `Cada término: ${M(sumStr(termVals(cs,xv)))}`,`Total: ${M(r.h())}`]}},
+  dosLados(){let a,c2;do{a=rnz(-7,9);c2=rnz(-7,9)}while(a===c2);const b=rnz(-12,12),e=rnz(-12,12),x=q(e-b,a-c2);
+    return{q:`Despeja ${M(X)}:`,ex:`${lin(a,b)} = ${lin(c2,e)}`,kind:'num',label:`${M(X)} =`,ans:x,
+      hint:'Las x a un lado, los números al otro.',
+      sol:[`Pasa las ${M(X)} a la izquierda y los números a la derecha: ${M(`${poly([a,0])} ${c2>0?MINUS+' '+(c2===1?'':c2):'+ '+(c2===-1?'':-c2)}${X} = ${neg(e)} ${b>0?MINUS+' '+b:'+ '+(-b)}`)}`,
+        `Reduce: ${M(`${poly([a-c2,0])} = ${neg(e-b)}`)}`,`Divide: ${M(`${X} = ${fr(neg(e-b),neg(a-c2))} = ${x.h()}`)}`]}},
+  inec(){const a=-ri(2,8),b=rnz(-15,15),c=ri(-10,10),rel=pick(['>=','<=','>','<']);const v=q(c-b,a);const r2=FLIP[rel];
+    return{q:'Resuelve la inecuación:',ex:`${lin(a,b)} ${RELSYM[rel]} ${neg(c)}`,kind:'rel',ans:{rel:r2,v},
+      hint:'Si divides entre un número NEGATIVO, el signo de la desigualdad se voltea.',
+      sol:[`Pasa el número: ${M(`${poly([a,0])} ${RELSYM[rel]} ${neg(c-b)}`)}`,
+        `Divides entre ${M(neg(a))}, que es NEGATIVO: el signo ${M(RELSYM[rel])} se voltea a ${M(RELSYM[r2])}.`,
+        `${M(`${X} ${RELSYM[r2]} ${fr(neg(c-b),neg(a))} = ${v.h()}`)}`]}},
+  inecPos(){const a=ri(2,9),b=rnz(-15,15),rel=pick(['>=','>']);const v=q(-b,a);
+    return{q:'Resuelve la inecuación:',ex:`${lin(a,b)} ${RELSYM[rel]} 0`,kind:'rel',ans:{rel,v},
+      hint:'Divides entre positivo: el signo NO cambia.',
+      sol:[`${M(`${poly([a,0])} ${RELSYM[rel]} ${neg(-b)}`)}`,`Divides entre ${a} (positivo), el signo se queda igual: ${M(`${X} ${RELSYM[rel]} ${v.h()}`)}`]}}
+ };
+ const pool=d===1?['despeje','fracc']:d===2?['negs','dosLados','inecPos']:['inec','inec','negs','dosLados'];
+ return V[opt||pick(pool)]()};
+
+const TYPES=['Constante','Identidad','Lineal','Afín','Cuadrática','Polinómica (grado 3 o más)','Racional','Radical','Valor absoluto','Exponencial','Logarítmica'];
+const TYPEWHY={
+ 'Constante':'Siempre da el mismo número: no hay x.',
+ 'Identidad':'Sale exactamente lo que entra: y = x.',
+ 'Lineal':'Forma y = mx: x a la 1, sin término independiente (pasa por el origen).',
+ 'Afín':'Forma y = mx + b: x a la 1 más un número.',
+ 'Cuadrática':'El exponente más alto de x es 2.',
+ 'Polinómica (grado 3 o más)':'Suma de potencias enteras de x con exponente mayor a 2.',
+ 'Racional':'Hay x en el DENOMINADOR.',
+ 'Radical':'La x está DENTRO de una raíz.',
+ 'Valor absoluto':'La x está dentro de barras | |.',
+ 'Exponencial':'La x está en el EXPONENTE.',
+ 'Logarítmica':'La x está dentro de un logaritmo.'};
+function exprType(t){const a=rnz(-6,6),b=rnz(-9,9),c=pick([2,3,4,5]),dd=rnz(-7,7);
+ switch(t){
+  case 'Constante':return `${neg(rnz(-9,9))}`;
+  case 'Identidad':return X;
+  case 'Lineal':return poly([pick([2,3,4,5,-2,-3,-5,-7]),0]);
+  case 'Afín':return lin(pick([2,3,4,-2,-3,5]),b);
+  case 'Cuadrática':return poly([rnz(-4,4),ri(-6,6),rnz(-9,9)]);
+  case 'Polinómica (grado 3 o más)':return poly([rnz(-3,3),ri(-4,4),ri(-5,5),rnz(-9,9)]);
+  case 'Racional':return fr(lin(a,b),lin(c,dd));
+  case 'Radical':return sqrt(lin(pick([1,2,3,-1]),b));
+  case 'Valor absoluto':return `|${lin(pick([1,2,3,-2]),b)}|`;
+  case 'Exponencial':return sup(pick([2,3,5,10]),X);
+  case 'Logarítmica':return `log(${lin(pick([1,2,3]),b)})`;
+ }}
+const TRAPS=[
+ {e:`${sqrt('2')}·${X} + 3`,t:'Afín',l:['Radical','Lineal','Racional'],w:'La raíz es de 2 (un número), no de x. Es de la forma mx + b: afín.'},
+ {e:fr(`${X}<sup>2</sup> + 1`,'4'),t:'Cuadrática',l:['Racional','Afín','Polinómica (grado 3 o más)'],w:'Dividir entre un NÚMERO no la hace racional. Es ¼x² + ¼: cuadrática.'},
+ {e:`${X}<sup>1/2</sup>`,t:'Radical',l:['Exponencial','Racional','Cuadrática'],w:'x^(1/2) = √x. La variable queda dentro de una raíz: radical.'},
+ {e:`3<sup>${X}</sup>`,t:'Exponencial',l:['Polinómica (grado 3 o más)','Cuadrática','Lineal'],w:'La x está en el exponente: exponencial. (x³ sería polinómica.)'},
+ {e:`${X}<sup>3</sup>`,t:'Polinómica (grado 3 o más)',l:['Exponencial','Cuadrática','Radical'],w:'La x es la base y el exponente es un número: polinómica de grado 3.'},
+ {e:`|${MINUS}4|·${X}`,t:'Lineal',l:['Valor absoluto','Afín','Constante'],w:'|−4| = 4 es solo un número. Queda y = 4x: lineal. Para ser de valor absoluto la x debe estar dentro de las barras.'},
+ {e:fr('5',X),t:'Racional',l:['Lineal','Constante','Exponencial'],w:'Hay x en el denominador: racional.'},
+ {e:sqrt(`${X} ${MINUS} 1`,'3'),t:'Radical',l:['Polinómica (grado 3 o más)','Exponencial','Racional'],w:'Raíz cúbica de una expresión con x: también es radical.'},
+ {e:`log(5)·${X}`,t:'Lineal',l:['Logarítmica','Afín','Exponencial'],w:'log 5 ≈ 0,699 es un número. Queda y = (número)·x: lineal.'},
+ {e:`${X} + 0`,t:'Identidad',l:['Lineal','Afín','Constante'],w:'x + 0 = x: sale lo mismo que entra. Identidad.'},
+ {e:`${sqrt('9')}`,t:'Constante',l:['Radical','Identidad','Lineal'],w:'√9 = 3, no hay x: constante.'},
+ {e:`|${X}| + 2`,t:'Valor absoluto',l:['Afín','Lineal','Radical'],w:'La x está dentro de las barras: valor absoluto (desplazada 2 hacia arriba).'},
+ {e:`2${X}<sup>2</sup> ${MINUS} ${X}<sup>3</sup>`,t:'Polinómica (grado 3 o más)',l:['Cuadrática','Exponencial','Racional'],w:'Manda el exponente MÁS ALTO: 3. Polinómica de grado 3, no cuadrática.'},
+ {e:fr(`2${X} + 1`,`${X}<sup>2</sup> + 1`),t:'Racional',l:['Cuadrática','Afín','Polinómica (grado 3 o más)'],w:'Hay x en el denominador: racional.'}];
+GEN.tipos=(d,opt)=>{
+ if(d===1){const t=pick(TYPES);const w=shuffle(TYPES.filter(x=>x!==t)).slice(0,3);
+   return mc({q:'¿Qué tipo de función es?',ex:`<i>y</i> = ${exprType(t)}`,right:t,wrong:w,hint:'Mira dónde está la x: ¿exponente? ¿raíz? ¿denominador? ¿barras?',sol:[TYPEWHY[t]]})}
+ if(d===2){const t=opt||pick(['Radical','Valor absoluto','Racional','Logarítmica','Exponencial','Afín','Lineal','Cuadrática']);
+   const others=shuffle(TYPES.filter(x=>x!==t&&!(t==='Afín'&&x==='Lineal')&&!(t==='Lineal'&&x==='Afín'))).slice(0,3);
+   return mc({q:`¿Cuál de estas es una función <b>${t.toLowerCase()}</b>?`,right:M(`<i>y</i> = ${exprType(t)}`),wrong:others.map(o=>M(`<i>y</i> = ${exprType(o)}`)),
+     hint:TYPEWHY[t],sol:[`${TYPEWHY[t]}`,'En el examen, si te piden escribir una, sirve cualquiera que cumpla eso. Ejemplo radical: y = √(x + 1). Ejemplo valor absoluto: y = |x − 3|.']})}
+ const tr=pick(TRAPS);
+ return mc({q:'¿Qué tipo de función es? (pregunta trampa)',ex:`<i>y</i> = ${tr.e}`,right:tr.t,wrong:tr.l,hint:'No te fíes de la apariencia: mira qué le pasa a la x.',sol:[tr.w]})};
+
+GEN.imagen=(d,opt)=>{const V={
+  lineal(){const a=rnz(-9,9),b=rnz(-12,12),k=d===1?ri(1,9):rnz(-6,6),cs=[a,b],r=evalPoly(cs,k);
+    return{q:`Halla la imagen de ${M(`${X} = ${neg(k)}`)} en`,ex:`<i>y</i> = ${poly(cs)}`,kind:'num',label:`${M('<i>y</i>')} =`,ans:r,chk:()=>a*k+b,
+      hint:'Cambia la x por el número, entre paréntesis.',
+      sol:[`Reemplaza la ${M(X)} por ${M(parQ(k))}: ${M(`<i>y</i> = ${subPoly(cs,k)}`)}`,`Multiplica: ${M(sumStr(termVals(cs,k)))}`,
+        `Resultado: ${M(`<i>y</i> = ${r.h()}`)}. El punto es ${M(`(${neg(k)}, ${r.h()})`)}.`]}},
+  cuad(){const a=rnz(-3,3),b=rnz(-7,7),c=ri(-9,9),k=-ri(1,5),cs=[a,b,c],r=evalPoly(cs,k);
+    return{q:`Si ${M(`<i>f</i>(${X}) = ${poly(cs)}`)}, calcula`,ex:`<i>f</i>(${neg(k)})`,kind:'num',label:`${M(`<i>f</i>(${neg(k)})`)} =`,ans:r,chk:()=>a*k*k+b*k+c,
+      hint:`(${MINUS}${-k})² = ${k*k}, positivo.`,
+      sol:[`Reemplaza con paréntesis: ${M(`<i>f</i>(${neg(k)}) = ${subPoly(cs,k)}`)}`,`Potencia primero: ${M(`(${neg(k)})<sup>2</sup> = ${k*k}`)}`,
+        `Términos: ${M(sumStr(termVals(cs,k)))}`,`${M(`<i>f</i>(${neg(k)}) = ${r.h()}`)}`]}},
+  racional(){let a,b,c,dd,k;do{a=rnz(-6,7);b=rnz(-9,9);c=rnz(-5,6);dd=rnz(-9,9);k=rnz(-4,5)}while(c*k+dd===0||a*dd===b*c);
+    const nu=a*k+b,de=c*k+dd,r=q(nu,de);
+    return{q:`Halla la imagen de ${M(`${X} = ${neg(k)}`)} en`,ex:`<i>y</i> = ${fr(lin(a,b),lin(c,dd))}`,kind:'num',label:`${M('<i>y</i>')} =`,ans:r,chk:()=>(a*k+b)/(c*k+dd),
+      hint:'Reemplaza arriba y abajo por separado; al final simplifica.',
+      sol:[`Numerador: ${M(`${subPoly([a,b],k)} = ${neg(nu)}`)}`,`Denominador: ${M(`${subPoly([c,dd],k)} = ${neg(de)}`)}`,
+        `${M(`<i>y</i> = ${fr(neg(nu),neg(de))} = ${r.h()}`)}${r.dec()}`]}},
+  preimagen(){const a=rnz(-8,8),b=rnz(-12,12),T=ri(-15,20),x=q(T-b,a);
+    return{q:`En ${M(`<i>y</i> = ${lin(a,b)}`)}, ¿qué valor de ${M(X)} tiene imagen ${M(neg(T))}?`,ex:`${lin(a,b)} = ${neg(T)}`,kind:'num',label:`${M(X)} =`,ans:x,chk:()=>(T-b)/a,
+      hint:'Ahora te dan la y: iguala y despeja x (es al revés que hallar la imagen).',
+      sol:[`Te dan la imagen (la ${M('<i>y</i>')}), así que igualas: ${M(`${lin(a,b)} = ${neg(T)}`)}`,
+        `${M(`${poly([a,0])} = ${neg(T-b)}`)}`,`${M(`${X} = ${fr(neg(T-b),neg(a))} = ${x.h()}`)}`]}},
+  resta(){const b=rnz(-6,6),c=ri(-9,9),cs=[1,b,c],k1=-ri(1,4),k2=ri(1,4),r1=evalPoly(cs,k1),r2=evalPoly(cs,k2),r=r1.sub(r2);
+    return{q:`Si ${M(`<i>f</i>(${X}) = ${poly(cs)}`)}, calcula`,ex:`<i>f</i>(${neg(k1)}) ${MINUS} <i>f</i>(${k2})`,kind:'num',label:'Resultado =',ans:r,chk:()=>(k1*k1+b*k1+c)-(k2*k2+b*k2+c),
+      hint:'Calcula cada imagen por separado y al final resta.',
+      sol:[`${M(`<i>f</i>(${neg(k1)}) = ${subPoly(cs,k1)} = ${r1.h()}`)}`,`${M(`<i>f</i>(${k2}) = ${subPoly(cs,k2)} = ${r2.h()}`)}`,
+        `${M(`${parQ(r1)} ${MINUS} ${parQ(r2)} = ${r.h()}`)}`]}}
+ };
+ const pool=d===1?['lineal']:d===2?['lineal','cuad','racional']:['cuad','racional','preimagen','resta'];
+ return V[opt||pick(pool)]()};
+
+GEN.dominio=(d,opt)=>{
+ const kind=opt||(d===3?pick(['raizNeg','logNeg','raizDen','cubica','sinCero','raiz','log','frac']):pick(['raiz','log','frac']));
+ let a=d===1?1:pick([2,3,4,5,6]),b=rnz(-9,9);
+ const mk=(ex,cond,rel,v,steps)=>({q:'Halla el dominio de la función:',ex:`<i>y</i> = ${ex}`,kind:'rel',ans:{rel,v},
+   hint:'Raíz par → adentro ≥ 0. Log → adentro > 0. Fracción → denominador ≠ 0.',sol:steps});
+ if(kind==='raiz'){const v=q(-b,a);return mk(sqrt(lin(a,b)),0,'>=',v,[`Es raíz cuadrada: lo de adentro no puede ser negativo.`,`Condición: ${M(`${lin(a,b)} ≥ 0`)}`,`${M(`${poly([a,0])} ≥ ${neg(-b)}`)}`,`${M(`${X} ≥ ${v.h()}`)}. Dominio: ${M(ivl('>=',v.h()))}`])}
+ if(kind==='log'){const v=q(-b,a);return mk(`log(${lin(a,b)})`,0,'>',v,[`Logaritmo: el argumento debe ser estrictamente positivo (no vale 0).`,`Condición: ${M(`${lin(a,b)} > 0`)}`,`${M(`${poly([a,0])} > ${neg(-b)}`)}`,`${M(`${X} > ${v.h()}`)}. Dominio: ${M(ivl('>',v.h()))}`])}
+ if(kind==='frac'){let p,qq;do{p=rnz(-7,7);qq=rnz(-9,9)}while(p*b===qq*a);const v=q(-b,a);
+   return mk(fr(lin(p,qq),lin(a,b)),0,'!=',v,[`Fracción: el denominador no puede ser 0 (el numerador no importa).`,`Condición: ${M(`${lin(a,b)} ≠ 0`)}`,`${M(`${poly([a,0])} ≠ ${neg(-b)}`)}`,`${M(`${X} ≠ ${v.h()}`)}. Dominio: ${M(ivl('!=',v.h()))}`])}
+ a=pick([2,3,4,5]);
+ if(kind==='raizNeg'){const c=rnz(-12,12),v=q(c,a);return mk(sqrt(lin(-a,c)),0,'<=',v,[`Raíz cuadrada: ${M(`${lin(-a,c)} ≥ 0`)}`,`Pasa el número: ${M(`${poly([-a,0])} ≥ ${neg(-c)}`)}`,`Divides entre ${M(neg(-a))} (NEGATIVO): el ≥ se voltea a ≤.`,`${M(`${X} ≤ ${v.h()}`)}. Dominio: ${M(ivl('<=',v.h()))}`])}
+ if(kind==='logNeg'){const c=rnz(-12,12),v=q(c,a);return mk(`log(${lin(-a,c)})`,0,'<',v,[`Logaritmo: ${M(`${lin(-a,c)} > 0`)}`,`${M(`${poly([-a,0])} > ${neg(-c)}`)}`,`Divides entre ${M(neg(-a))} (NEGATIVO): el > se voltea a <.`,`${M(`${X} < ${v.h()}`)}. Dominio: ${M(ivl('<',v.h()))}`])}
+ if(kind==='raizDen'){const k=ri(1,9),v=q(-b,a);return mk(fr(k,sqrt(lin(a,b))),0,'>',v,[`Hay una raíz en el DENOMINADOR: lo de adentro debe ser ≥ 0 por la raíz y ≠ 0 por la fracción. Juntas: > 0.`,`Condición: ${M(`${lin(a,b)} > 0`)}`,`${M(`${X} > ${v.h()}`)}. Dominio: ${M(ivl('>',v.h()))}`])}
+ if(kind==='cubica'){return mk(sqrt(lin(a,b),'3'),0,'R',null,[`Es raíz CÚBICA (índice impar): sí existe la raíz cúbica de un negativo, por ejemplo ∛(−8) = −2.`,`No hay restricción: dominio = todos los reales ${M('ℝ')}.`])}
+ const c=ri(1,9),k=rnz(-9,9);
+ return mk(fr(neg(k),poly([1,0,c])),0,'R',null,[`Fracción: el denominador ${M(poly([1,0,c]))} no puede ser 0.`,`Pero ${M(`${X}<sup>2</sup> ≥ 0`)}, entonces ${M(poly([1,0,c]))} ≥ ${c}: NUNCA da 0.`,`No hay restricción: dominio = todos los reales ${M('ℝ')}.`]);
+};
+
+GEN.interceptos=(d,opt)=>{const V={
+  recta(){let m,b;if(d===1){m=pick([1,2,3,4,5,-1,-2,-3]);b=m*rnz(-4,4)*pick([1,1,1]);if(Math.random()<.4)b=rnz(-9,9)}else{m=pick([2,3,4,5,6,7,-2,-3,-4,-5]);b=rnz(-9,9)}
+    if(b===0)b=pick([5,-5,3]);const cx=q(-b,m);
+    return{q:'Halla los cortes con los ejes de',ex:`<i>y</i> = ${lin(m,b)}`,kind:'pair',labels:[`Corte eje x: ${M(X)} =`,`Corte eje y: ${M('<i>y</i>')} =`],ans:[cx,q(b)],chk:()=>[-b/m,b],
+      hint:'Eje x: pon y = 0 y despeja. Eje y: pon x = 0.',
+      sol:[`Eje ${M(X)} (y = 0): ${M(`0 = ${lin(m,b)}`)} → ${M(`${poly([m,0])} = ${neg(-b)}`)} → ${M(`${X} = ${cx.h()}`)}. Punto ${M(`(${cx.h()}, 0)`)}`,
+        `Eje ${M('<i>y</i>')} (x = 0): ${M(`<i>y</i> = ${subPoly([m,b],0)} = ${neg(b)}`)}. Punto ${M(`(0, ${neg(b)})`)}`]}},
+  racional(){let a,b,c,dd;do{a=rnz(-5,6);b=rnz(-9,9);c=rnz(-5,6);dd=rnz(-9,9)}while(a*dd===b*c);const cx=q(-b,a),cy=q(b,dd);
+    return{q:'Halla los cortes con los ejes de',ex:`<i>y</i> = ${fr(lin(a,b),lin(c,dd))}`,kind:'pair',labels:[`Corte eje x: ${M(X)} =`,`Corte eje y: ${M('<i>y</i>')} =`],ans:[cx,cy],chk:()=>[-b/a,b/dd],
+      hint:'Una fracción vale 0 solo si el NUMERADOR vale 0.',
+      sol:[`Eje ${M(X)}: la fracción es 0 cuando el numerador es 0: ${M(`${lin(a,b)} = 0`)} → ${M(`${X} = ${cx.h()}`)}`,
+        `Eje ${M('<i>y</i>')}: ${M(`<i>y</i> = ${fr(subPoly([a,b],0),subPoly([c,dd],0))} = ${fr(neg(b),neg(dd))} = ${cy.h()}`)}`]}},
+  general(){const A=pick([2,3,4,5,6,-2,-3,-4]),B=pick([2,3,5,7,-2,-3,-5]),C=rnz(-18,18);const cx=q(C,A),cy=q(C,B);
+    const lhs=`${neg(A)}${X} ${B<0?MINUS+' '+(-B):'+ '+B}<i>y</i>`;
+    return{q:'Halla los cortes con los ejes de la recta',ex:`${lhs} = ${neg(C)}`,kind:'pair',labels:[`Corte eje x: ${M(X)} =`,`Corte eje y: ${M('<i>y</i>')} =`],ans:[cx,cy],chk:()=>[C/A,C/B],
+      hint:'No hace falta despejar y. Pon y = 0 para el corte x y x = 0 para el corte y.',
+      sol:[`Eje ${M(X)}: ${M(`<i>y</i> = 0`)} → ${M(`${neg(A)}${X} = ${neg(C)}`)} → ${M(`${X} = ${cx.h()}`)}`,
+        `Eje ${M('<i>y</i>')}: ${M(`${X} = 0`)} → ${M(`${neg(B)}<i>y</i> = ${neg(C)}`)} → ${M(`<i>y</i> = ${cy.h()}`)}`]}}
+ };
+ const pool=d===1?['recta']:d===2?['recta','racional']:['racional','general','recta'];
+ return V[opt||pick(pool)]()};
+
+GEN.asintotas=(d,opt)=>{const V={
+  simple(){let a,b,dd;do{a=rnz(-7,7);b=rnz(-9,9);dd=rnz(-9,9)}while(a*dd===b);const v=q(-dd);
+    return{q:'Halla la asíntota vertical de',ex:`<i>y</i> = ${fr(lin(a,b),lin(1,dd))}`,kind:'num',label:`Asíntota: ${M(X)} =`,ans:v,chk:()=>-dd,
+      hint:'Iguala el DENOMINADOR a cero.',
+      sol:[`Igualo el denominador a cero: ${M(`${lin(1,dd)} = 0`)}`,`Despejo: ${M(`${X} = ${v.h()}`)}`,
+        `Verifico el numerador en ese valor: ${M(`${subPoly([a,b],v)} = ${evalPoly([a,b],v).h()} ≠ 0`)}, así que sí es asíntota.`,`Asíntota vertical: ${M(`${X} = ${v.h()}`)}`]}},
+  general(){let a,b,c,dd;do{a=rnz(-8,8);b=rnz(-9,9);c=d===3?pick([2,3,4,5,6,-2,-3,-4]):pick([2,3,4,5,6,7]);dd=rnz(-9,9)}while(a*dd===b*c);const v=q(-dd,c);
+    return{q:'Halla la asíntota vertical de',ex:`<i>y</i> = ${fr(lin(a,b),lin(c,dd))}`,kind:'num',label:`Asíntota: ${M(X)} =`,ans:v,chk:()=>-dd/c,
+      hint:'Denominador = 0 y despeja. Puede dar fracción.',
+      sol:[`Igualo el denominador a cero: ${M(`${lin(c,dd)} = 0`)}`,`${M(`${poly([c,0])} = ${neg(-dd)}`)} → ${M(`${X} = ${fr(neg(-dd),neg(c))} = ${v.h()}`)}`,
+        `Verifico: el numerador en ${M(X+' = '+v.h())} da ${M(evalPoly([a,b],v).h())} ≠ 0 → no se cancela.`,`Asíntota vertical: ${M(`${X} = ${v.h()}`)}`]}},
+  dos(){const k=ri(2,7);let p;do{p=rnz(-9,9)}while(Math.abs(p)===k);
+    return mc({q:'¿Cuáles son las asíntotas verticales de',ex:`<i>y</i> = ${fr(lin(1,p),poly([1,0,-k*k]))}`,right:M(`${X} = ${k}  y  ${X} = ${MINUS}${k}`),
+      wrong:[M(`Solo ${X} = ${k}`),M(`${X} = ${k*k}`),M(`${X} = ${neg(-p)}`)],hint:`${X}² = ${k*k} tiene DOS soluciones.`,
+      sol:[`Denominador = 0: ${M(`${X}<sup>2</sup> ${MINUS} ${k*k} = 0`)} → ${M(`${X}<sup>2</sup> = ${k*k}`)}`,`${M(`${X} = ${k}`)} o ${M(`${X} = ${MINUS}${k}`)} (la raíz tiene dos signos).`,
+        `El numerador ${M(lin(1,p))} no se anula en ninguno → dos asíntotas: ${M(`${X} = ${k}`)} y ${M(`${X} = ${MINUS}${k}`)}.`]})},
+  hueco(){const k=rnz(-7,7);
+    return mc({q:'¿Qué pasa en el denominador cero de',ex:`<i>y</i> = ${fr(poly([1,0,-k*k]),lin(1,-k))}`,right:`No hay asíntota vertical: en ${M(`${X} = ${neg(k)}`)} hay un hueco`,
+      wrong:[`Asíntota vertical ${M(`${X} = ${neg(k)}`)}`,`Asíntota vertical ${M(`${X} = ${neg(-k)}`)}`,`Dos asíntotas: ${M(`${X} = ${Math.abs(k)}`)} y ${M(`${X} = ${MINUS}${Math.abs(k)}`)}`],
+      hint:'Antes de responder, factoriza el numerador y mira si se cancela algo.',
+      sol:[`Factorizo (diferencia de cuadrados): ${M(`${sup(X,2)} ${MINUS} ${k*k} = (${lin(1,-k)})(${lin(1,k)})`)}`,`Se cancela ${M(`(${lin(1,-k)})`)}: queda ${M(`<i>y</i> = ${lin(1,k)}`)}, una recta.`,
+        `Como el factor se canceló, en ${M(`${X} = ${neg(k)}`)} no hay asíntota sino un hueco (punto vacío).`]})},
+  mixto(){const p=rnz(-6,6);let r;do{r=rnz(-6,6)}while(r===p);
+    return mc({q:'¿Cuál es la asíntota vertical de',ex:`<i>y</i> = ${fr(lin(1,-p),poly([1,-(p+r),p*r]))}`,right:`${M(`${X} = ${neg(r)}`)} (en ${M(`${X} = ${neg(p)}`)} hay un hueco)`,
+      wrong:[`${M(`${X} = ${neg(p)}`)} y ${M(`${X} = ${neg(r)}`)}`,`Solo ${M(`${X} = ${neg(p)}`)}`,'No tiene asíntotas'],hint:'Factoriza el trinomio del denominador.',
+      sol:[`Factorizo: ${M(`${poly([1,-(p+r),p*r])} = (${lin(1,-p)})(${lin(1,-r)})`)} (dos números que sumen ${neg(-(p+r))} y multipliquen ${neg(p*r)}).`,
+        `Se cancela ${M(`(${lin(1,-p)})`)} con el numerador: queda ${M(`<i>y</i> = ${fr(1,lin(1,-r))}`)}.`,`Asíntota vertical solo en ${M(`${X} = ${neg(r)}`)}; en ${M(`${X} = ${neg(p)}`)} queda un hueco.`]})},
+  horizontal(){let a,b,c,dd;do{a=rnz(-8,9);b=rnz(-9,9);c=pick([2,3,4,5,-2,-3]);dd=rnz(-9,9)}while(a*dd===b*c);const v=q(a,c);
+    return{q:'(Bonus) Halla la asíntota <b>horizontal</b> de',ex:`<i>y</i> = ${fr(lin(a,b),lin(c,dd))}`,kind:'num',label:`Asíntota: ${M('<i>y</i>')} =`,ans:v,chk:()=>a/c,
+      hint:'Mismo grado arriba y abajo → divide los coeficientes de la x.',
+      sol:[`Numerador y denominador son de grado 1 (mismo grado).`,`Asíntota horizontal = coeficiente principal de arriba ÷ el de abajo: ${M(`<i>y</i> = ${fr(neg(a),neg(c))} = ${v.h()}`)}`]}}
+ };
+ const pool=d===1?['simple']:d===2?['general','simple']:['general','dos','hueco','mixto','horizontal'];
+ return V[opt||pick(pool)]()};
+
+GEN.sucesiones=(d,opt)=>{const V={
+  lineal(){const p=rnz(-6,8),qq=rnz(-9,9),k=ri(3,12),cs=[p,qq],r=evalPoly(cs,k);
+    return{q:`Dada ${M(`${an('<i>n</i>')} = ${poly(cs,NN)}`)}, halla`,ex:an(k),kind:'num',label:`${M(an(k))} =`,ans:r,chk:()=>p*k+qq,
+      hint:`Reemplaza la n por ${k}.`,sol:[`Reemplazo ${M(`<i>n</i> = ${k}`)}: ${M(`${an(k)} = ${subPoly(cs,k)} = ${r.h()}`)}`]}},
+  racional(){let p,qq,rr,s,k;do{p=rnz(-7,8);qq=rnz(-9,9);rr=rnz(-6,8);s=rnz(-9,9);k=ri(2,9)}while(rr*k+s===0);const nu=p*k+qq,de=rr*k+s,r=q(nu,de);
+    return{q:`Dada ${M(`${an('<i>n</i>')} = ${fr(poly([p,qq],NN),poly([rr,s],NN))}`)}, halla el término`,ex:an(k),kind:'num',label:`${M(an(k))} =`,ans:r,chk:()=>nu/de,
+      hint:`Reemplaza TODAS las n por ${k}, arriba y abajo.`,
+      sol:[`Numerador: ${M(`${subPoly([p,qq],k)} = ${neg(nu)}`)}`,`Denominador: ${M(`${subPoly([rr,s],k)} = ${neg(de)}`)}`,`${M(`${an(k)} = ${fr(neg(nu),neg(de))} = ${r.h()}`)}`]}},
+  cuad(){const b=rnz(-6,6),c=ri(-9,9),k=ri(3,10),cs=[1,b,c],r=evalPoly(cs,k);
+    return{q:`Dada ${M(`${an('<i>n</i>')} = ${poly(cs,NN)}`)}, halla`,ex:an(k),kind:'num',label:`${M(an(k))} =`,ans:r,chk:()=>k*k+b*k+c,
+      hint:'Potencia primero.',sol:[`${M(`${an(k)} = ${subPoly(cs,k)}`)}`,`${M(`= ${sumStr(termVals(cs,k))} = ${r.h()}`)}`]}},
+  lugar(){const p=pick([2,3,4,5,6,7]),qq=rnz(-9,9),n0=ri(8,40),T=p*n0+qq;
+    return{q:`En la sucesión ${M(`${an('<i>n</i>')} = ${poly([p,qq],NN)}`)}, ¿qué lugar ocupa el término que vale ${M(neg(T))}?`,ex:`${poly([p,qq],NN)} = ${neg(T)}`,kind:'num',label:`${M(NN)} =`,ans:q(n0),chk:()=>n0,
+      hint:'Iguala la fórmula al valor y despeja n.',
+      sol:[`Igualo: ${M(`${poly([p,qq],NN)} = ${neg(T)}`)}`,`${M(`${poly([p,0],NN)} = ${neg(T-qq)}`)} → ${M(`<i>n</i> = ${fr(neg(T-qq),p)} = ${n0}`)}`,`Es el término número ${n0}: ${M(an(n0)+' = '+neg(T))}.`]}},
+  aritm(){const a1=rnz(-12,15),dd=rnz(-6,7),k=ri(10,30),r=a1+(k-1)*dd;
+    return{q:`Una sucesión aritmética tiene ${M(`${an(1)} = ${neg(a1)}`)} y diferencia ${M(`<i>d</i> = ${neg(dd)}`)}. Halla`,ex:an(k),kind:'num',label:`${M(an(k))} =`,ans:q(r),chk:()=>r,
+      hint:'aₙ = a₁ + (n − 1)·d',sol:[`Fórmula: ${M(`${an('<i>n</i>')} = ${an(1)} + (<i>n</i> ${MINUS} 1)<i>d</i>`)}`,`${M(`${an(k)} = ${neg(a1)} + (${k} ${MINUS} 1)·${parQ(dd)} = ${neg(a1)} + ${k-1}·${parQ(dd)} = ${neg(r)}`)}`]}},
+  alterna(){const p=ri(1,5),s=ri(1,6),k=ri(2,9),sg=k%2===0?1:-1,r=q(sg*(k+p),k+s);
+    return{q:`Dada ${M(`${an('<i>n</i>')} = (${MINUS}1)<sup><i>n</i></sup>·${fr(lin(1,p,NN),lin(1,s,NN))}`)}, halla`,ex:an(k),kind:'num',label:`${M(an(k))} =`,ans:r,chk:()=>sg*(k+p)/(k+s),
+      hint:'(−1) elevado a un número par da 1; a un impar da −1.',
+      sol:[`${M(`(${MINUS}1)<sup>${k}</sup> = ${sg}`)} porque ${k} es ${k%2===0?'par':'impar'}.`,`${M(`${an(k)} = ${sg===1?'':MINUS}${fr(k+p,k+s)} = ${r.h()}`)}`]}}
+ };
+ const pool=d===1?['lineal']:d===2?['racional','cuad']:['racional','lugar','aritm','alterna'];
+ return V[opt||pick(pool)]()};
+
+const CTX=['usan gafas','practican fútbol','llevaron la tarea','son hinchas del Nacional','tienen hermanos','viven en Envigado'];
+GEN.probabilidad=(d,opt)=>{const V={
+  grupo(){const N=ri(20,40),k=ri(5,N-3),c=pick(CTX),otros=Math.random()<.7;const f=otros?N-k:k,r=q(f,N);
+    return{q:`En un grupo de ${N} estudiantes, ${k} ${c}. Si se elige uno al azar, ¿cuál es la probabilidad de que ${otros?'<b>no</b> '+c:c}?`,kind:'num',label:'P =',ans:r,ph:'ej: 1/6 o 0,167',
+      hint:otros?`Primero cuenta los que NO: ${N} − ${k}.`:'Favorables ÷ total.',
+      sol:[otros?`Casos favorables (los que no): ${M(`${N} ${MINUS} ${k} = ${f}`)}`:`Casos favorables: ${f}`,`Casos posibles: ${N}`,
+        `${M(`P = ${fr(f,N)} = ${r.h()}`)}${r.dec()} (≈ ${(r.v*100).toFixed(1).replace('.',',')} %)`]}},
+  dado(){const E=pick([['un número par',[2,4,6]],['un número mayor que 4',[5,6]],['un múltiplo de 3',[3,6]],['un número primo',[2,3,5]],['un número menor que 3',[1,2]],['un número mayor o igual a 3',[3,4,5,6]]]);
+    const r=q(E[1].length,6);
+    return{q:`Se lanza un dado. ¿Cuál es la probabilidad de obtener ${E[0]}?`,kind:'num',label:'P =',ans:r,ph:'ej: 1/3',hint:'Un dado tiene 6 resultados posibles. Haz la lista de los favorables.',
+      sol:[`Favorables: {${E[1].join(', ')}} → ${E[1].length} casos.`,`Posibles: 6.`,`${M(`P = ${fr(E[1].length,6)} = ${r.h()}`)}`]}},
+  urna(){const R=ri(2,9),A=ri(2,9),V2=ri(1,8),T=R+A+V2,r=q(A+V2,T);
+    return{q:`Una bolsa tiene ${R} bolas rojas, ${A} azules y ${V2} verdes. Se saca una. ¿Probabilidad de que <b>no</b> sea roja?`,kind:'num',label:'P =',ans:r,hint:'"No roja" = azules + verdes. O usa 1 − P(roja).',
+      sol:[`Total: ${M(`${R} + ${A} + ${V2} = ${T}`)}`,`No rojas: ${M(`${A} + ${V2} = ${A+V2}`)}`,`${M(`P = ${fr(A+V2,T)} = ${r.h()}`)}. Comprobación: ${M(`1 ${MINUS} ${fr(R,T)}`)} da lo mismo.`]}},
+  dosDados(){const s=ri(3,11),c=6-Math.abs(s-7),r=q(c,36);const pares=[];for(let i=1;i<=6;i++){const j=s-i;if(j>=1&&j<=6)pares.push(`(${i},${j})`)}
+    return{q:`Se lanzan dos dados. ¿Cuál es la probabilidad de que la suma sea ${s}?`,kind:'num',label:'P =',ans:r,hint:'Con dos dados hay 6 × 6 = 36 resultados. Cuenta los pares que suman eso.',
+      sol:[`Posibles: ${M('6 × 6 = 36')}`,`Pares que suman ${s}: ${pares.join(' ')} → ${c}`,`${M(`P = ${fr(c,36)} = ${r.h()}`)}`]}},
+  sinRep(){const R=ri(3,8),A=ri(2,8),T=R+A,r=q(R*(R-1),T*(T-1));
+    return{q:`Una caja tiene ${R} fichas rojas y ${A} azules. Se sacan dos <b>sin reposición</b>. ¿Probabilidad de que ambas sean rojas?`,kind:'num',label:'P =',ans:r,hint:'La primera: R/T. La segunda: queda una roja menos y una ficha menos en total. Multiplica.',
+      sol:[`Primera roja: ${M(fr(R,T))}`,`Segunda roja (ya salió una): ${M(fr(R-1,T-1))}`,`${M(`P = ${fr(R,T)} · ${fr(R-1,T-1)} = ${fr(R*(R-1),T*(T-1))} = ${r.h()}`)}`]}},
+  monedas(){const m=pick([2,3]),j=ri(m===2?1:1,m===2?1:2);const C=m===2?2:3,r=q(C,2**m);const tot=2**m;
+    const lista=m===2?'CC, CS, SC, SS':'CCC, CCS, CSC, SCC, CSS, SCS, SSC, SSS';
+    return{q:`Se lanzan ${m} monedas. ¿Probabilidad de obtener exactamente ${j} cara${j>1?'s':''}?`,kind:'num',label:'P =',ans:r,hint:`Hay 2^${m} = ${tot} resultados. Escríbelos.`,
+      sol:[`Resultados: ${lista} (${tot}).`,`Con exactamente ${j} cara${j>1?'s':''}: ${C}.`,`${M(`P = ${fr(C,tot)} = ${r.h()}`)}`]}}
+ };
+ const pool=d===1?['grupo']:d===2?['grupo','dado','urna']:['dosDados','sinRep','monedas','urna'];
+ return V[opt||pick(pool)]()};
+
+GEN.limsus=(d,opt)=>{const L=a=>`lim<sub>${X} → ${neg(a)}</sub> `;const V={
+  poli(){const a=rnz(-4,5),cs=Math.random()<.5?[rnz(-6,6),rnz(-9,9)]:[rnz(-3,4),rnz(-6,6),ri(-9,9)],r=evalPoly(cs,a);
+    return{q:'Calcula el límite:',ex:`${L(a)}(${poly(cs)})`,kind:'num',label:'Límite =',ans:r,chk:()=>evalPoly(cs,a).v,
+      hint:'Primer paso SIEMPRE: reemplaza x por el número.',sol:[`Es un polinomio: se reemplaza directo ${M(`${X} = ${neg(a)}`)}.`,`${M(`${subPoly(cs,a)} = ${r.h()}`)}`]}},
+  racional(){let p,qq,rr,s,a;do{p=rnz(-6,7);qq=rnz(-9,9);rr=rnz(-5,5);s=rnz(-9,9);a=rnz(-4,5)}while(rr*a+s===0||p*a+qq===0);const nu=p*a+qq,de=rr*a+s,r=q(nu,de);
+    return{q:'Calcula el límite:',ex:`${L(a)}${fr(lin(p,qq),lin(rr,s))}`,kind:'num',label:'Límite =',ans:r,chk:()=>(p*a+qq)/(rr*a+s),
+      hint:'Reemplaza. Si el denominador NO da 0, ese es el límite.',
+      sol:[`Sustituyo ${M(`${X} = ${neg(a)}`)}: numerador ${M(`${subPoly([p,qq],a)} = ${neg(nu)}`)}, denominador ${M(`${subPoly([rr,s],a)} = ${neg(de)}`)}`,
+        `El denominador no es 0 → el límite es ${M(`${fr(neg(nu),neg(de))} = ${r.h()}`)}`]}},
+  raiz(){const a=rnz(-3,5),b=pick([1,2,3,4]),m=ri(1,6),c=m*m-b*a;
+    return{q:'Calcula el límite:',ex:`${L(a)}${sqrt(lin(b,c))}`,kind:'num',label:'Límite =',ans:q(m),chk:()=>Math.sqrt(b*a+c),
+      hint:'Reemplaza adentro de la raíz y saca la raíz.',sol:[`Adentro: ${M(`${subPoly([b,c],a)} = ${m*m}`)}`,`${M(`${sqrt(m*m)} = ${m}`)}`]}},
+  k0(){const a=rnz(-5,5),k=ri(1,9);
+    return mc({q:'¿Cuánto vale el límite?',ex:`${L(a)}${fr(k,`(${lin(1,-a)})<sup>2</sup>`)}`,right:'+∞ (crece sin límite; no es un número real)',wrong:['0',`${k}`,'Es 0/0: se factoriza'],
+      hint:'Reemplaza: ¿da 0/0 o da número/0?',
+      sol:[`Sustituyo: numerador ${k}, denominador ${M(`(${neg(a)} ${a>=0?MINUS+' '+a:'+ '+(-a)})<sup>2</sup> = 0`)} → forma ${M(`${fr(k,0)}`)}.`,`Un número entre algo que se acerca a 0 crece sin límite. Como está al cuadrado, el denominador es siempre positivo → ${M('+∞')}.`,`Ojo: ${M(fr(k,0))} NO es indeterminación; 0/0 sí.`]})}
+ };
+ const pool=d===1?['poli']:d===2?['poli','racional']:['racional','raiz','k0'];
+ return V[opt||pick(pool)]()};
+
+const INDET=['0/0','∞/∞','0·∞','∞ − ∞','0<sup>0</sup>','1<sup>∞</sup>','∞<sup>0</sup>'];
+const NOINDET=[['∞ + ∞','da ∞'],['5/0','tiende a ∞ (no es indeterminada)'],['0/7','da 0'],['0<sup>∞</sup>','da 0'],['7/∞','da 0'],['∞·∞','da ∞']];
+GEN.lim00=(d,opt)=>{const L=a=>`lim<sub>${X} → ${neg(a)}</sub> `;const V={
+  difcuad(){const a=rnz(-7,7),r=q(2*a);
+    return{q:'Calcula el límite (da 0/0):',ex:`${L(a)}${fr(poly([1,0,-a*a]),lin(1,-a))}`,kind:'num',label:'Límite =',ans:r,chk:()=>{const x=a+1e-7;return (x*x-a*a)/(x-a)},
+      hint:'Diferencia de cuadrados: x² − a² = (x − a)(x + a).',
+      sol:[`Sustituyo: ${M(`${fr(`${a*a} ${MINUS} ${a*a}`,`${neg(a)} ${a>=0?MINUS+' '+a:'+ '+(-a)}`)} = ${fr(0,0)}`)} → indeterminado, hay que trabajar.`,
+        `Factorizo: ${M(`${poly([1,0,-a*a])} = (${lin(1,-a)})(${lin(1,a)})`)}`,`Cancelo ${M(`(${lin(1,-a)})`)}: queda ${M(`${L(a)}(${lin(1,a)})`)}`,`Sustituyo: ${M(`${parQ(a)} + ${a} = ${neg(2*a)}`)}`]}},
+  trin(){const a=rnz(-6,6);let b;do{b=rnz(-7,7)}while(b===a);const r=q(a-b);
+    return{q:'Calcula el límite (da 0/0):',ex:`${L(a)}${fr(poly([1,-(a+b),a*b]),lin(1,-a))}`,kind:'num',label:'Límite =',ans:r,chk:()=>{const x=a+1e-7;return (x*x-(a+b)*x+a*b)/(x-a)},
+      hint:`Factoriza el trinomio: busca dos números que multipliquen ${neg(a*b)} y sumen ${neg(-(a+b))}. Uno de los factores tiene que ser (x ${a>=0?'−':'+'} ${Math.abs(a)}).`,
+      sol:[`Sustituyo ${M(`${X} = ${neg(a)}`)}: da ${M(fr(0,0))} → indeterminado.`,`Factorizo: ${M(`${poly([1,-(a+b),a*b])} = (${lin(1,-a)})(${lin(1,-b)})`)}`,
+        `Cancelo ${M(`(${lin(1,-a)})`)}: queda ${M(`${L(a)}(${lin(1,-b)})`)}`,`${M(`${parQ(a)} ${b>=0?MINUS+' '+b:'+ '+(-b)} = ${r.h()}`)}`]}},
+  dosTrin(){const a=rnz(-5,5);let b,c;do{b=rnz(-6,6);c=rnz(-6,6)}while(b===a||c===a||b===c);const r=q(a-b,a-c);
+    return{q:'Calcula el límite (da 0/0):',ex:`${L(a)}${fr(poly([1,-(a+b),a*b]),poly([1,-(a+c),a*c]))}`,kind:'num',label:'Límite =',ans:r,chk:()=>{const x=a+1e-7;return (x*x-(a+b)*x+a*b)/(x*x-(a+c)*x+a*c)},
+      hint:'Factoriza arriba y abajo; ambos tienen el factor común.',
+      sol:[`Sustituyo: da ${M(fr(0,0))}.`,`Arriba: ${M(`(${lin(1,-a)})(${lin(1,-b)})`)}. Abajo: ${M(`(${lin(1,-a)})(${lin(1,-c)})`)}`,
+        `Cancelo ${M(`(${lin(1,-a)})`)}: ${M(`${L(a)}${fr(lin(1,-b),lin(1,-c))}`)}`,`${M(`${fr(`${neg(a)} ${b>=0?MINUS+' '+b:'+ '+(-b)}`,`${neg(a)} ${c>=0?MINUS+' '+c:'+ '+(-c)}`)} = ${fr(neg(a-b),neg(a-c))} = ${r.h()}`)}`]}},
+  factorK(){const a=rnz(-6,6),k=rnz(-5,6),r=q(k,2*a);
+    return{q:'Calcula el límite (da 0/0):',ex:`${L(a)}${fr(lin(k,-k*a),poly([1,0,-a*a]))}`,kind:'num',label:'Límite =',ans:r,chk:()=>{const x=a+1e-7;return (k*x-k*a)/(x*x-a*a)},
+      hint:'Arriba saca factor común; abajo diferencia de cuadrados.',
+      sol:[`Sustituyo: da ${M(fr(0,0))}.`,`Arriba factor común: ${M(`${neg(k)}(${lin(1,-a)})`)}. Abajo: ${M(`(${lin(1,-a)})(${lin(1,a)})`)}`,
+        `Cancelo: ${M(`${L(a)}${fr(neg(k),lin(1,a))}`)}`,`${M(`${fr(neg(k),`${neg(a)} + ${a}`)} = ${fr(neg(k),neg(2*a))} = ${r.h()}`)}`]}},
+  cubo(){const a=rnz(-4,4),r=q(3*a*a);
+    return{q:'Calcula el límite (da 0/0):',ex:`${L(a)}${fr(poly([1,0,0,-a*a*a]),lin(1,-a))}`,kind:'num',label:'Límite =',ans:r,chk:()=>{const x=a+1e-6;return (x**3-a**3)/(x-a)},
+      hint:'Diferencia de cubos: x³ − a³ = (x − a)(x² + ax + a²).',
+      sol:[`Sustituyo: da ${M(fr(0,0))}.`,`Diferencia de cubos: ${M(`${poly([1,0,0,-a*a*a])} = (${lin(1,-a)})(${poly([1,a,a*a])})`)}`,
+        `Cancelo: ${M(`${L(a)}(${poly([1,a,a*a])})`)}`,`${M(`${subPoly([1,a,a*a],a)} = ${r.h()}`)}`]}},
+  raiz(){const k=ri(1,6),r=q(1,2*k);
+    return{q:'Calcula el límite (da 0/0, hay raíz):',ex:`lim<sub>${X} → 0</sub> ${fr(`${sqrt(`${X} + ${k*k}`)} ${MINUS} ${k}`,X)}`,kind:'num',label:'Límite =',ans:r,chk:()=>{const x=1e-7;return (Math.sqrt(x+k*k)-k)/x},
+      hint:`Multiplica arriba y abajo por la conjugada: √(x + ${k*k}) + ${k}.`,
+      sol:[`Sustituyo: ${M(`${fr(`${sqrt(k*k)} ${MINUS} ${k}`,'0')} = ${fr(0,0)}`)}.`,
+        `Multiplico por la conjugada ${M(`${sqrt(`${X} + ${k*k}`)} + ${k}`)} arriba y abajo. Arriba queda ${M(`(${X} + ${k*k}) ${MINUS} ${k*k} = ${X}`)}.`,
+        `${M(fr(X,`${X}(${sqrt(`${X} + ${k*k}`)} + ${k})`))} → cancelo la ${M(X)}: ${M(fr(1,`${sqrt(`${X} + ${k*k}`)} + ${k}`))}`,
+        `Sustituyo ${M(`${X} = 0`)}: ${M(`${fr(1,`${k} + ${k}`)} = ${r.h()}`)}`]}},
+  raiz2(){const m=ri(1,6),r=q(1,2*m);
+    return{q:'Calcula el límite (da 0/0, hay raíz):',ex:`lim<sub>${X} → ${m*m}</sub> ${fr(`${sqrt(X)} ${MINUS} ${m}`,`${X} ${MINUS} ${m*m}`)}`,kind:'num',label:'Límite =',ans:r,chk:()=>{const x=m*m+1e-7;return (Math.sqrt(x)-m)/(x-m*m)},
+      hint:`x − ${m*m} = (√x − ${m})(√x + ${m}).`,
+      sol:[`Sustituyo: ${M(fr(`${m} ${MINUS} ${m}`,`${m*m} ${MINUS} ${m*m}`)+' = '+fr(0,0))}.`,`Abajo, como diferencia de cuadrados: ${M(`${X} ${MINUS} ${m*m} = (${sqrt(X)} ${MINUS} ${m})(${sqrt(X)} + ${m})`)}`,
+        `Cancelo ${M(`(${sqrt(X)} ${MINUS} ${m})`)}: ${M(fr(1,`${sqrt(X)} + ${m}`))}`,`${M(`${fr(1,`${m} + ${m}`)} = ${r.h()}`)}`]}},
+  formas(){const mode=pick(['no','si']);
+    if(mode==='no'){const n=pick(NOINDET);return mc({q:'¿Cuál de estas <b>NO</b> es una forma indeterminada?',right:M(n[0]),wrong:shuffle(INDET).slice(0,3).map(M),
+      hint:'Las 7 indeterminadas: 0/0, ∞/∞, 0·∞, ∞−∞, 0⁰, 1^∞, ∞⁰.',sol:[`${M(n[0])} ${n[1]}: tiene un resultado claro.`,`Las 7 formas indeterminadas son: ${M(INDET.join(', '))}.`]})}
+    const s=pick(INDET);return mc({q:'¿Cuál de estas <b>SÍ</b> es una forma indeterminada?',right:M(s),wrong:shuffle(NOINDET).slice(0,3).map(n=>M(n[0])),
+      hint:'Truco para recordarlas: dos cocientes (0/0, ∞/∞), un producto (0·∞), una resta (∞−∞) y tres potencias (0⁰, 1^∞, ∞⁰).',sol:[`${M(s)} es una de las 7 formas indeterminadas: ${M(INDET.join(', '))}.`]})}
+ };
+ const pool=d===1?['difcuad']:d===2?['difcuad','trin','factorK']:['trin','dosTrin','cubo','raiz','raiz2','formas'];
+ return V[opt||pick(pool)]()};
+
+const THEORY=[
+ {k:'av',q:'¿Cuál es el procedimiento para hallar la asíntota vertical de una función racional?',r:'Igualar el denominador a cero, despejar x y verificar que ese valor no anule también el numerador.',w:['Igualar el numerador a cero y despejar x.','Reemplazar x = 0 en la función.','Dividir los coeficientes de la x del numerador y del denominador.'],why:'La asíntota vertical aparece donde la función "explota": denominador 0 y numerador distinto de 0. Dividir coeficientes da la asíntota HORIZONTAL; numerador = 0 da el corte con el eje x.'},
+ {k:'img',q:'¿Cómo se busca la imagen de un valor de x?',r:'Se reemplaza la x por ese valor en la función y se resuelven las operaciones; el resultado es y.',w:['Se iguala la función a cero y se despeja x.','Se iguala el denominador a cero.','Se reemplaza la y por ese valor y se despeja x.'],why:'Imagen = lo que SALE de la máquina al meter ese x. Reemplazar la y y despejar x es la preimagen (el camino al revés).'},
+ {k:'dr',q:'En y = √(expresión), ¿qué condición se plantea para el dominio?',r:'expresión ≥ 0',w:['expresión > 0','expresión ≠ 0','No hay condición'],why:'La raíz cuadrada de 0 sí existe (√0 = 0), por eso es ≥. De negativos no existe en los reales.'},
+ {k:'dl',q:'En y = log(expresión), ¿qué condición se plantea para el dominio?',r:'expresión > 0',w:['expresión ≥ 0','expresión ≠ 0','expresión < 0'],why:'log(0) no existe y log de negativos tampoco: el argumento debe ser estrictamente positivo.'},
+ {k:'df',q:'En una función racional (fracción con x abajo), ¿qué condición se plantea para el dominio?',r:'denominador ≠ 0',w:['numerador ≠ 0','denominador > 0','denominador ≥ 0'],why:'No se puede dividir entre cero. El numerador sí puede valer 0 (la fracción da 0).'},
+ {k:'cx',q:'Para hallar el corte con el eje x se hace:',r:'y = 0 y se despeja x',w:['x = 0 y se calcula y','y = x','Se iguala el denominador a cero'],why:'Sobre el eje x todos los puntos tienen altura 0, o sea y = 0.'},
+ {k:'cy',q:'Para hallar el corte con el eje y se hace:',r:'x = 0 y se calcula y',w:['y = 0 y se despeja x','Se iguala el numerador a cero','Se divide b entre m'],why:'Sobre el eje y todos los puntos tienen x = 0.'},
+ {k:'hu',q:'¿Por qué un cero del denominador no siempre es una asíntota vertical?',r:'Porque si también anula el numerador y el factor se cancela, queda un hueco y no una asíntota.',w:['Porque las asíntotas solo salen del numerador.','Porque si da negativo no cuenta.','Siempre es asíntota, no hay excepción.'],why:'Ejemplo: (x² − 4)/(x − 2) = x + 2 con un hueco en x = 2.'},
+ {k:'dom',q:'¿Qué es el dominio de una función?',r:'El conjunto de valores de x que se pueden reemplazar en la función.',w:['El conjunto de resultados y que da la función.','Los puntos donde la gráfica corta los ejes.','El valor al que se acerca la función.'],why:'Dominio = entradas permitidas. Los resultados son el rango (o recorrido).'},
+ {k:'suc',q:'En una sucesión aₙ, ¿qué representa n?',r:'La posición del término (1.º, 2.º, 3.º, …)',w:['El valor del término','La diferencia entre dos términos','El número total de términos'],why:'Por eso n solo toma valores 1, 2, 3, … Para el quinto término se reemplaza n = 5.'},
+ {k:'pro',q:'La probabilidad de un evento simple se calcula como:',r:'casos favorables ÷ casos posibles',w:['casos posibles ÷ casos favorables','casos favorables − casos posibles','casos favorables × casos posibles'],why:'Por eso siempre da entre 0 y 1. Si te da más de 1, invertiste la fracción.'},
+ {k:'l00',q:'Al sustituir en un límite obtienes 0/0. ¿Qué significa?',r:'Es indeterminado: hay que factorizar o racionalizar, cancelar y volver a sustituir.',w:['El límite es 0.','El límite no existe.','El límite es 1.'],why:'0/0 no es una respuesta: indica que hay un factor (x − a) escondido arriba y abajo.'},
+ {k:'lk0',q:'Al sustituir en un límite obtienes 6/0. ¿Qué significa?',r:'La función crece sin límite (tiende a ∞): no hay un número como límite.',w:['El límite es 0.','El límite es 6.','Es 0/0: se factoriza.'],why:'Número distinto de cero entre 0 NO es indeterminación: indica asíntota vertical.'},
+ {k:'ine',q:'Al despejar una inecuación divides entre un número negativo. ¿Qué haces con el signo?',r:'Se voltea (≥ pasa a ≤, > pasa a <).',w:['Se queda igual.','Se cambia por =.','Se vuelve ≠.'],why:'Ejemplo: −2x ≥ 6 → x ≤ −3. Prueba x = −4: −2(−4) = 8 ≥ 6 ✔.'},
+ {k:'f7',q:'¿Cuáles son las 7 formas indeterminadas?',r:'0/0, ∞/∞, 0·∞, ∞ − ∞, 0⁰, 1^∞, ∞⁰',w:['0/0, ∞/∞, k/0, ∞ + ∞, 0⁰, 1^∞, ∞⁰','0/0, 1/0, 0·∞, ∞ − ∞, 0^∞, 1^∞, ∞⁰','0/0, ∞/∞, 0·∞, ∞·∞, 0⁰, 1¹, ∞⁰'],why:'Dos cocientes, un producto, una resta y tres potencias.'},
+ {k:'fun',q:'¿Qué es una función?',r:'Una relación que a cada valor de x le asigna un único valor de y.',w:['Cualquier ecuación con x e y.','Una relación donde a cada y le corresponde un único x.','Una gráfica que siempre es una recta.'],why:'Una entrada, una sola salida. Por eso una circunferencia no es función.'}
+];
+GEN.teoria=(d,opt)=>{const t=opt?THEORY.find(x=>x.k===opt):pick(THEORY);return mc({q:t.q,right:t.r,wrong:t.w,hint:'Piensa en el porqué, no en memorizar.',sol:[t.why]})};
+
+/* ============ niveles (contenido) ============ */
+const LEVELS=[
+ {id:'bases',t:'Bases: signos, despejes, inecuaciones',s:'Sin esto, todo lo demás falla',needs:[],v:'julioprofe inecuaciones lineales',
+  idea:'Casi todo el examen se reduce a dos cosas: <b>sustituir</b> un número y <b>despejar</b>. Si aquí fallas un signo, fallas el ejercicio entero.',
+  why:'Dominio, interceptos y asíntotas son despejes. Imagen, sucesiones y límites son sustituciones. Esta es la base de la escalera.',
+  recipe:['Signos: menos por menos da más. <span class="m">(−3)<sup>2</sup> = 9</span>, pero <span class="m">−3<sup>2</sup> = −9</span>.','Despejar: lo que suma pasa restando; lo que multiplica pasa dividiendo <b>con su mismo signo</b>.','Inecuaciones: igual que despejar, pero si multiplicas o divides entre un <b>negativo</b>, el signo se voltea.','Fracciones: <span class="m">'+fr('<i>a</i>','<i>b</i>')+' + '+fr('<i>c</i>','<i>d</i>')+' = '+fr('<i>ad</i> + <i>cb</i>','<i>bd</i>')+'</span>, y simplifica al final.'],
+  ex:{q:'Resuelve <span class="m">−2<i>x</i> + 6 ≥ 0</span>',steps:['Paso el 6: <span class="m">−2<i>x</i> ≥ −6</span>','Divido entre −2, que es negativo: el ≥ se voltea.','<span class="m"><i>x</i> ≤ 3</span>. Compruebo con x = 0: −2(0) + 6 = 6 ≥ 0 ✔']},
+  traps:['Olvidar voltear el signo al dividir entre negativo (es el error #1 en dominios).','Escribir <span class="m">−2<sup>2</sup></span> cuando querías <span class="m">(−2)<sup>2</sup></span>. Siempre pon el número entre paréntesis.','<span class="m">'+fr(0,5)+' = 0</span>, pero <span class="m">'+fr(5,0)+'</span> no existe.']},
+ {id:'tipos',t:'Qué es una función y sus tipos',s:'Reconocer y escribir funciones',needs:['bases'],v:'julioprofe tipos de funciones',
+  idea:'Una función es una máquina: entra un <span class="m"><i>x</i></span>, sale <b>un único</b> <span class="m"><i>y</i></span>. El tipo depende de <b>qué le pasa a la x</b>.',
+  why:'El tablero pide "escribe una función radical" e "identifica la de valor absoluto". Además, el tipo te dice qué condición de dominio aplicar.',
+  table:[['Constante','<i>y</i> = 5','No hay x'],['Identidad','<i>y</i> = <i>x</i>','Sale lo mismo que entra'],['Lineal','<i>y</i> = 3<i>x</i>','<i>mx</i>, sin número suelto'],['Afín','<i>y</i> = 3<i>x</i> + 2','<i>mx</i> + <i>b</i>'],['Cuadrática','<i>y</i> = <i>x</i><sup>2</sup> − 4','Exponente mayor = 2'],['Polinómica','<i>y</i> = <i>x</i><sup>3</sup> + <i>x</i>','Exponente mayor ≥ 3'],['Racional','<i>y</i> = '+fr('<i>x</i> + 1','<i>x</i> − 2'),'x en el denominador'],['Radical','<i>y</i> = '+sqrt('<i>x</i> + 1'),'x dentro de raíz'],['Valor absoluto','<i>y</i> = |<i>x</i> − 3|','x dentro de barras'],['Exponencial','<i>y</i> = 2<sup><i>x</i></sup>','x en el exponente'],['Logarítmica','<i>y</i> = log(<i>x</i> + 1)','x dentro del log']],
+  recipe:['Busca dónde está la x: ¿abajo de una fracción? ¿dentro de una raíz? ¿en el exponente? ¿entre barras? ¿dentro de un log?','Si no está en ninguno de esos sitios, es polinómica: mira el exponente más alto (0 constante, 1 lineal/afín, 2 cuadrática, 3+ polinómica).','Si la raíz, el log o las barras son de un <b>número</b> (√2, log 5, |−4|), eso es solo un número: no cambia el tipo.'],
+  examen:'<b>Escribe una función radical:</b> <span class="m"><i>y</i> = '+sqrt('<i>x</i> + 1')+'</span> (la variable está dentro de la raíz). <b>Valor absoluto:</b> <span class="m"><i>y</i> = |<i>x</i> − 3|</span> (la variable está dentro de las barras).',
+  ex:{q:'¿Qué tipo es <span class="m"><i>y</i> = '+fr('<i>x</i><sup>2</sup> + 1','4')+'</span>?',steps:['¿Hay x en el denominador? No: abajo solo hay un 4.','Es <span class="m">¼<i>x</i><sup>2</sup> + ¼</span>. Exponente mayor 2.','Es <b>cuadrática</b>, no racional.']},
+  traps:['<span class="m">√2·<i>x</i> + 3</span> es afín (la raíz es de un número).','<span class="m">2<sup><i>x</i></sup></span> es exponencial; <span class="m"><i>x</i><sup>2</sup></span> es cuadrática.','Lineal (<span class="m">3<i>x</i></span>) y afín (<span class="m">3<i>x</i> + 2</span>) no son lo mismo en este curso.']},
+ {id:'imagen',t:'Imagen: evaluar una función',s:'Reemplazar x y operar',needs:['bases'],v:'julioprofe evaluar funciones',
+  idea:'Hallar la imagen de un valor es <b>meterlo en la máquina</b>: cambias cada <span class="m"><i>x</i></span> por ese número y operas. Lo que sale es <span class="m"><i>y</i></span>.',
+  why:'Es la pregunta de teoría del tablero y es la misma operación que usarás en sucesiones y en límites por sustitución.',
+  recipe:['Copia la función y cambia cada x por el número <b>entre paréntesis</b>.','Resuelve en orden: potencias, multiplicaciones y divisiones, sumas y restas.','Escribe el resultado como <span class="m"><i>f</i>(<i>a</i>) = …</span> y, si quieres, el punto <span class="m">(<i>a</i>, <i>f</i>(<i>a</i>))</span>.'],
+  examen:'<b>Explica cómo buscar la imagen de un valor de x:</b> se reemplaza la variable x por el valor dado en la función y se resuelven las operaciones; el resultado es la imagen y.',
+  ex:{q:'Imagen de <span class="m"><i>x</i> = 3</span> en <span class="m"><i>y</i> = 4<i>x</i> − 5</span> (la del tablero)',steps:['Reemplazo: <span class="m"><i>y</i> = 4(3) − 5</span>','Multiplico: <span class="m">12 − 5</span>','<span class="m"><i>y</i> = 7</span>. Punto (3, 7).']},
+  ex2:{q:'Exigente: <span class="m"><i>f</i>(<i>x</i>) = <i>x</i><sup>2</sup> − 3<i>x</i></span>, calcula <span class="m"><i>f</i>(−2)</span>',steps:['<span class="m">(−2)<sup>2</sup> − 3(−2)</span>','<span class="m">4 + 6</span>','<span class="m"><i>f</i>(−2) = 10</span>']},
+  traps:['Sin paréntesis, <span class="m">−2<sup>2</sup></span> da −4 y te equivocas. Con paréntesis, <span class="m">(−2)<sup>2</sup> = 4</span>.','Si te dan la y y piden la x, es al revés: igualas y despejas (preimagen).','En una fracción, si el denominador da 0, ese valor no tiene imagen.']},
+ {id:'dominio',t:'Dominio',s:'Raíz, logaritmo y fracción',needs:['bases','tipos'],v:'julioprofe dominio de una funcion',
+  idea:'El dominio son los valores de <span class="m"><i>x</i></span> que <b>sí puedo meter</b>. Solo hay tres zonas peligrosas: la raíz par, el logaritmo y el denominador.',
+  why:'En los reales no hay raíz cuadrada de negativos, el logaritmo solo acepta positivos (10 elevado a algo nunca da 0 ni negativo) y no se divide entre cero.',
+  table:[['Raíz par '+sqrt('□'),'□ ≥ 0','<i>y</i> = '+sqrt('<i>x</i> + 1')+' → <i>x</i> ≥ −1'],['Logaritmo log(□)','□ > 0','<i>y</i> = log(<i>x</i> + 1) → <i>x</i> > −1'],['Fracción '+fr('…','□'),'□ ≠ 0','<i>y</i> = '+fr('3<i>x</i> − 2','2<i>x</i> − 1')+' → <i>x</i> ≠ '+fr(1,2)],['Raíz en el denominador '+fr(1,sqrt('□')),'□ > 0','≥ por la raíz y ≠ 0 por la fracción'],['Polinomio, raíz cúbica, exponencial','ninguna','Todos los reales ℝ']],
+  recipe:['Identifica la zona peligrosa (raíz par, log o denominador).','Escribe la condición: ≥ 0, > 0 o ≠ 0.','Despeja x. Si divides entre negativo, voltea el signo.','Escribe el dominio como desigualdad y como intervalo.'],
+  examen:'<b>Plantea la condición:</b> raíz: <span class="m"><i>x</i> + 1 ≥ 0 → <i>x</i> ≥ −1</span>, Dom = [−1, ∞). Logaritmo: <span class="m"><i>x</i> + 1 > 0 → <i>x</i> > −1</span>, Dom = (−1, ∞). Fracción: <span class="m">2<i>x</i> − 1 ≠ 0 → <i>x</i> ≠ '+fr(1,2)+'</span>, Dom = ℝ − {½}.',
+  ex:{q:'Exigente: dominio de <span class="m"><i>y</i> = '+sqrt('6 − 2<i>x</i>')+'</span>',steps:['Condición: <span class="m">6 − 2<i>x</i> ≥ 0</span>','<span class="m">−2<i>x</i> ≥ −6</span>','Divido entre −2 (negativo): se voltea. <span class="m"><i>x</i> ≤ 3</span>. Dom = (−∞, 3]']},
+  ex2:{q:'Trampa: dominio de <span class="m"><i>y</i> = '+fr(3,'<i>x</i><sup>2</sup> + 4')+'</span>',steps:['Condición: <span class="m"><i>x</i><sup>2</sup> + 4 ≠ 0</span>','<span class="m"><i>x</i><sup>2</sup></span> nunca es negativo, así que <span class="m"><i>x</i><sup>2</sup> + 4 ≥ 4</span>: nunca da 0.','Dominio: todos los reales ℝ.']},
+  traps:['Raíz: es ≥ (el 0 sí vale). Log: es > (el 0 NO vale). No los cambies.','En la fracción solo importa el denominador.','Raíz cúbica ∛ no tiene restricción: ∛(−8) = −2.']},
+ {id:'interceptos',t:'Interceptos con los ejes',s:'Dónde la gráfica toca los ejes',needs:['bases','imagen'],v:'julioprofe interceptos con los ejes funcion lineal',
+  idea:'Cortar el eje <span class="m"><i>x</i></span> es estar a altura 0: <span class="m"><i>y</i> = 0</span>. Cortar el eje <span class="m"><i>y</i></span> es estar en <span class="m"><i>x</i> = 0</span>.',
+  why:'Con dos cortes puedes graficar cualquier recta. Y el corte con el eje x de una fracción es donde el numerador vale 0.',
+  recipe:['Eje x: pon y = 0 y despeja x. Escribe el punto (x, 0).','Eje y: pon x = 0 y calcula y. Escribe el punto (0, y).','En una fracción: corte x → numerador = 0; corte y → reemplaza x = 0 arriba y abajo.'],
+  examen:'<b>Ojo con el tablero:</b> la imagen usa <span class="m">4<i>x</i> − 5</span> y los interceptos usan <span class="m">4<i>x</i> + 5</span>. Lee bien el signo antes de empezar.',
+  ex:{q:'Cortes de <span class="m"><i>y</i> = 4<i>x</i> + 5</span>',steps:['Eje x: <span class="m">0 = 4<i>x</i> + 5 → 4<i>x</i> = −5 → <i>x</i> = −'+fr(5,4)+'</span>. Punto (−5/4, 0)','Eje y: <span class="m"><i>y</i> = 4(0) + 5 = 5</span>. Punto (0, 5)']},
+  ex2:{q:'Exigente: cortes de <span class="m">2<i>x</i> + 3<i>y</i> = 6</span>',steps:['Eje x (y = 0): <span class="m">2<i>x</i> = 6 → <i>x</i> = 3</span>','Eje y (x = 0): <span class="m">3<i>y</i> = 6 → <i>y</i> = 2</span>']},
+  traps:['Confundir cuál variable se hace cero: para el corte con el eje x, la que vale 0 es la y.','El corte con el eje y de una recta y = mx + b es directamente b.']},
+ {id:'asintotas',t:'Asíntotas verticales',s:'Donde la función se dispara',needs:['dominio'],v:'julioprofe asintotas verticales funcion racional',
+  idea:'Una asíntota vertical es la recta <span class="m"><i>x</i> = <i>a</i></span> donde el denominador vale 0 y el numerador no: la gráfica sube o baja sin límite pegada a esa recta.',
+  why:'Es el valor que quitaste del dominio de la fracción. Pero no todo cero del denominador es asíntota: si se cancela con el numerador, es un hueco.',
+  recipe:['Iguala el denominador a cero.','Despeja x.','Verifica que ese valor NO anule el numerador. Si lo anula, factoriza y cancela: es un hueco.','Escribe: "La asíntota vertical es x = …".'],
+  examen:'<b>Procedimiento (teoría):</b> se iguala el denominador a cero, se despeja x y se verifica que ese valor no anule el numerador; la recta x = valor es la asíntota vertical.',
+  ex:{q:'Asíntota de <span class="m"><i>y</i> = '+fr('7<i>x</i> − 2','4<i>x</i> − 2')+'</span> (la del tablero)',steps:['<span class="m">4<i>x</i> − 2 = 0</span>','<span class="m">4<i>x</i> = 2 → <i>x</i> = '+fr(2,4)+' = '+fr(1,2)+'</span>','Numerador en ½: <span class="m">7(½) − 2 = '+fr(3,2)+' ≠ 0</span> ✔','Asíntota vertical: <span class="m"><i>x</i> = '+fr(1,2)+'</span>']},
+  ex2:{q:'Exigente: <span class="m"><i>y</i> = '+fr('<i>x</i> + 1','<i>x</i><sup>2</sup> − 9')+'</span>',steps:['<span class="m"><i>x</i><sup>2</sup> − 9 = 0 → <i>x</i><sup>2</sup> = 9</span>','<span class="m"><i>x</i> = 3</span> o <span class="m"><i>x</i> = −3</span>','El numerador no se anula en ninguno: <b>dos asíntotas</b>, x = 3 y x = −3.']},
+  traps:['Igualar el numerador a cero: eso da el corte con el eje x, no la asíntota.','Olvidar el signo negativo de la raíz en x² = 9.','Bonus: con el mismo grado arriba y abajo, la asíntota <b>horizontal</b> es y = coeficiente de arriba ÷ coeficiente de abajo. En el ejemplo: y = 7/4.']},
+ {id:'sucesiones',t:'Sucesiones',s:'Hallar un término con su fórmula',needs:['imagen'],v:'julioprofe sucesiones termino general',
+  idea:'Una sucesión es una función cuya entrada es la posición <span class="m"><i>n</i></span> = 1, 2, 3… El término <span class="m">'+an(5)+'</span> es la imagen de <span class="m"><i>n</i> = 5</span>.',
+  why:'Es exactamente evaluar una función, pero con n en lugar de x.',
+  recipe:['Reemplaza TODAS las n por la posición pedida.','Opera arriba y abajo por separado.','Simplifica la fracción.','Si te dan el valor y piden la posición: iguala la fórmula al valor y despeja n (debe dar entero positivo).'],
+  examen:'Aritmética: <span class="m">'+an('<i>n</i>')+' = '+an(1)+' + (<i>n</i> − 1)<i>d</i></span>, donde d es lo que se suma cada vez.',
+  ex:{q:'Quinto término de <span class="m">'+an('<i>n</i>')+' = '+fr('5<i>n</i> − 4','7<i>n</i> − 1')+'</span> (la del tablero)',steps:['Arriba: <span class="m">5(5) − 4 = 21</span>','Abajo: <span class="m">7(5) − 1 = 34</span>','<span class="m">'+an(5)+' = '+fr(21,34)+'</span> (ya no se simplifica)']},
+  traps:['Reemplazar la n solo arriba.','Confundir n (la posición) con aₙ (el valor).','(−1)ⁿ: con n par da 1, con n impar da −1.']},
+ {id:'probabilidad',t:'Probabilidad simple',s:'Favorables entre posibles',needs:['bases'],v:'julioprofe probabilidad clasica',
+  idea:'<span class="m">P = '+fr('casos favorables','casos posibles')+'</span>. Siempre queda entre 0 y 1.',
+  why:'Es la última pregunta del tablero. El truco está en contar bien: "los otros" se cuentan restando.',
+  recipe:['Cuenta los casos posibles (el total).','Cuenta los favorables. Si piden "no A", resta: total − A (o usa 1 − P(A)).','Divide y simplifica. Puedes dar fracción, decimal o porcentaje.'],
+  examen:'Dos dados: 36 resultados. Dos monedas: 4. Tres monedas: 8. Sin reposición: multiplica las probabilidades y baja el total en 1 cada vez.',
+  ex:{q:'De 30 estudiantes, 25 cumplen una característica. ¿P de elegir a uno de los otros? (la del tablero)',steps:['Los otros: <span class="m">30 − 25 = 5</span>','<span class="m">P = '+fr(5,30)+' = '+fr(1,6)+'</span>','≈ 0,167 ≈ 16,7 %']},
+  traps:['Poner el total arriba (si te da más de 1, está volteado).','No simplificar 5/30.','Con dos dados, (1,2) y (2,1) son resultados distintos.']},
+ {id:'limites-sustitucion',t:'Límites: sustitución directa',s:'Primer paso de todo límite',needs:['imagen'],v:'julioprofe limites por sustitucion directa',
+  idea:'<span class="m">lim<sub><i>x</i>→<i>a</i></sub> <i>f</i>(<i>x</i>)</span> pregunta a qué valor se acerca <span class="m"><i>f</i></span> cuando x se acerca a a. <b>Primer paso, siempre:</b> reemplazar x = a.',
+  why:'Si da un número, terminaste. Si da número/0 tiende a ∞. Si da 0/0 hay que trabajar (siguiente nivel).',
+  recipe:['Reemplaza x por a.','Número → ese es el límite.','k/0 con k ≠ 0 → tiende a ∞ (no es indeterminación).','0/0 → indeterminación: factoriza o racionaliza.'],
+  ex:{q:'<span class="m">lim<sub><i>x</i>→1</sub> '+fr('2<i>x</i> + 3','<i>x</i> + 4')+'</span>',steps:['Reemplazo x = 1: <span class="m">'+fr('2(1) + 3','1 + 4')+'</span>','<span class="m">'+fr(5,5)+' = 1</span>. El límite es 1.']},
+  traps:['Decir que k/0 es indeterminado: no lo es.','Factorizar sin haber sustituido primero.']},
+ {id:'limites-indeterminados',t:'Límites 0/0 y formas indeterminadas',s:'Factorizar, cancelar, sustituir',needs:['limites-sustitucion','bases'],v:'julioprofe limites indeterminados factorizacion',
+  idea:'Si al sustituir te da <span class="m">'+fr(0,0)+'</span>, arriba y abajo esconden el mismo factor <span class="m">(<i>x</i> − <i>a</i>)</span>. Lo sacas factorizando, lo cancelas y vuelves a sustituir.',
+  why:'0/0 no es una respuesta: es una señal de que la expresión se puede simplificar.',
+  table:[['Diferencia de cuadrados','<i>a</i><sup>2</sup> − <i>b</i><sup>2</sup> = (<i>a</i> − <i>b</i>)(<i>a</i> + <i>b</i>)','<i>x</i><sup>2</sup> − 9 = (<i>x</i> − 3)(<i>x</i> + 3)'],['Trinomio','<i>x</i><sup>2</sup> + <i>bx</i> + <i>c</i> = (<i>x</i> + <i>m</i>)(<i>x</i> + <i>n</i>)','<i>m</i> + <i>n</i> = <i>b</i>, <i>m</i>·<i>n</i> = <i>c</i>'],['Factor común','<i>kx</i> − <i>ka</i> = <i>k</i>(<i>x</i> − <i>a</i>)','3<i>x</i> − 6 = 3(<i>x</i> − 2)'],['Diferencia de cubos','<i>x</i><sup>3</sup> − <i>a</i><sup>3</sup> = (<i>x</i> − <i>a</i>)(<i>x</i><sup>2</sup> + <i>ax</i> + <i>a</i><sup>2</sup>)','<i>x</i><sup>3</sup> − 8 = (<i>x</i> − 2)(<i>x</i><sup>2</sup> + 2<i>x</i> + 4)'],['Conjugada (raíces)','('+sqrt('<i>A</i>')+' − <i>k</i>)('+sqrt('<i>A</i>')+' + <i>k</i>) = <i>A</i> − <i>k</i><sup>2</sup>','Multiplica arriba y abajo']],
+  recipe:['Sustituye: confirma que da 0/0.','Factoriza arriba y abajo (o multiplica por la conjugada si hay raíz).','Cancela el factor (x − a).','Sustituye otra vez: ese es el límite.'],
+  examen:'<b>Las 7 formas indeterminadas:</b> <span class="m">0/0, ∞/∞, 0·∞, ∞ − ∞, 0<sup>0</sup>, 1<sup>∞</sup>, ∞<sup>0</sup></span>. Para recordarlas: dos cocientes, un producto, una resta y tres potencias. <b>No</b> son indeterminadas: k/0, 0/k, ∞ + ∞, 0<sup>∞</sup>.',
+  ex:{q:'<span class="m">lim<sub><i>x</i>→2</sub> '+fr('<i>x</i><sup>2</sup> − 5<i>x</i> + 6','<i>x</i> − 2')+'</span>',steps:['Sustituyo: <span class="m">'+fr('4 − 10 + 6','0')+' = '+fr(0,0)+'</span>','Factorizo: dos números que multipliquen 6 y sumen −5: −2 y −3 → <span class="m">(<i>x</i> − 2)(<i>x</i> − 3)</span>','Cancelo (x − 2): <span class="m">lim<sub><i>x</i>→2</sub> (<i>x</i> − 3)</span>','<span class="m">2 − 3 = −1</span>']},
+  ex2:{q:'Exigente: <span class="m">lim<sub><i>x</i>→0</sub> '+fr(sqrt('<i>x</i> + 4')+' − 2','<i>x</i>')+'</span>',steps:['Sustituyo: 0/0.','Multiplico por la conjugada <span class="m">'+sqrt('<i>x</i> + 4')+' + 2</span>: arriba queda <span class="m">(<i>x</i> + 4) − 4 = <i>x</i></span>','<span class="m">'+fr('<i>x</i>','<i>x</i>('+sqrt('<i>x</i> + 4')+' + 2)')+'</span> → cancelo x','<span class="m">'+fr(1,'2 + 2')+' = '+fr(1,4)+'</span>']},
+  traps:['Cancelar términos sueltos (como las x² de arriba y abajo) en vez de factores: está prohibido.','Responder "0" o "no existe" cuando da 0/0.','En el trinomio, revisar el signo de los dos números.']},
+ {id:'teoria',t:'Teoría del examen',s:'Lo que se escribe con palabras',needs:[],v:'julioprofe funciones dominio rango',
+  idea:'El tablero tiene preguntas de <b>teoría</b>: escribir un procedimiento o explicar un concepto. Aquí está la respuesta modelo de cada una, para que la digas con tus palabras.',
+  why:'Estas preguntas dan puntos fáciles si las tienes claras y se pierden si escribes algo vago.',
+  recipe:['Lee la pregunta y escríbela en tu cuaderno sin mirar la respuesta.','Responde con tus palabras.','Destapa la respuesta modelo y compara.','Practica las de selección para ver si distingues la correcta de las trampas.'],
+  cuaderno:true,traps:['Confundir asíntota vertical (denominador = 0) con asíntota horizontal (dividir coeficientes).','Confundir imagen (meter x) con preimagen (te dan y).','Decir que el dominio de log es ≥ 0: es > 0.']}
+];
+const CUADERNO=[
+ ['Escribe el procedimiento para encontrar la asíntota vertical de una función racional.','1) Se iguala el denominador a cero. 2) Se despeja x. 3) Se verifica que ese valor no anule el numerador (si lo anula y se cancela, es un hueco). 4) La asíntota vertical es la recta x = ese valor.'],
+ ['Explica cómo buscar la imagen de un valor de x.','Se reemplaza la variable x por el valor dado en la función, entre paréntesis, y se resuelven las operaciones en orden (potencias, multiplicaciones, sumas). El resultado es la imagen y = f(a).'],
+ ['Escribe una función radical.','y = √(x + 1). Es radical porque la variable está dentro de una raíz.'],
+ ['Identifica la función de valor absoluto.','Es la que tiene la variable dentro de barras, por ejemplo y = |x − 3|.'],
+ ['Plantea la condición de dominio para una raíz, un logaritmo y una fracción.','Raíz cuadrada: lo de adentro ≥ 0. Logaritmo: el argumento > 0. Fracción: denominador ≠ 0.'],
+ ['¿Cómo se hallan los interceptos con los ejes?','Eje x: se hace y = 0 y se despeja x → punto (x, 0). Eje y: se hace x = 0 y se calcula y → punto (0, y).'],
+ ['¿Cómo se halla un término de una sucesión?','Se reemplaza n por la posición pedida en el término general aₙ y se opera.'],
+ ['¿Cómo se calcula la probabilidad de un evento simple?','P = casos favorables / casos posibles. Da un valor entre 0 y 1.'],
+ ['¿Qué haces si un límite da 0/0?','Es una indeterminación: se factoriza (o se racionaliza), se cancela el factor común (x − a) y se vuelve a sustituir.'],
+ ['Escribe las 7 formas indeterminadas.','0/0, ∞/∞, 0·∞, ∞ − ∞, 0⁰, 1^∞, ∞⁰.']
+];
+const SHORT={bases:'Bases',tipos:'Tipos de funciones',imagen:'Imagen',dominio:'Dominio',interceptos:'Interceptos',asintotas:'Asíntotas',sucesiones:'Sucesiones',probabilidad:'Probabilidad','limites-sustitucion':'Límites directos','limites-indeterminados':'Límites 0/0',teoria:'Teoría del examen'};
+const LV=Object.fromEntries(LEVELS.map((l,i)=>[l.id,Object.assign(l,{n:i+1,sh:SHORT[l.id]})]));
+
+/* ============ estado ============ */
+const KEY='tablero-final-mate-v1';
+let S;try{S=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){S={}}
+S.lv=S.lv||{};S.sims=S.sims||[];S.diff=S.diff||{};S.fin=S.fin||{best:0};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const st=id=>S.lv[id]||(S.lv[id]={c:[0,0,0],t:[0,0,0],k:0,m:false});
+const NEED_STREAK=3;
+
+/* ============ respuestas ============ */
+function parseNum(s){
+  if(s==null)return null;s=String(s).trim().replace(/[−–]/g,'-').replace(/\s+/g,'');
+  s=s.replace(/^[a-zA-Z]+\(?[a-zA-Z0-9-]*\)?=/,'');
+  let pct=false;if(s.endsWith('%')){pct=true;s=s.slice(0,-1)}
+  s=s.replace(/,/g,'.');let m;
+  if((m=s.match(/^\(?([-+]?\d*\.?\d+)\)?\/\(?([-+]?\d*\.?\d+)\)?$/))){const d=parseFloat(m[2]);if(d===0)return null;const v=parseFloat(m[1])/d;return{v:pct?v/100:v,exact:!/\./.test(s)&&!pct}}
+  if(/^[-+]?\d*\.?\d+$/.test(s)){const v=parseFloat(s);return{v:pct?v/100:v,exact:!/\./.test(s)&&!pct}}
+  return null}
+function near(a,t){if(!a)return false;if(a.exact)return Math.abs(a.v-t)<1e-9;const diff=Math.abs(a.v-t);if(Math.abs(t)<1e-9)return diff<1e-9;return diff<=0.0051&&diff/Math.abs(t)<=0.021}
+function grade(p,a){if(a==null)return false;
+  if(p.kind==='mc')return a.i===p.correct;
+  if(p.kind==='num')return near(a.n,p.ans.v);
+  if(p.kind==='pair')return near(a.n[0],p.ans[0].v)&&near(a.n[1],p.ans[1].v);
+  if(p.kind==='rel'){if(a.rel!==p.ans.rel)return false;return p.ans.rel==='R'||near(a.n,p.ans.v.v)}}
+function ansHtml(p){if(p.kind==='mc')return p.opts[p.correct];
+  if(p.kind==='num')return M(p.ans.h()+p.ans.dec());
+  if(p.kind==='pair')return `corte x: ${M(p.ans[0].h())} · corte y: ${M(p.ans[1].h())}`;
+  if(p.kind==='rel')return p.ans.rel==='R'?'Todos los reales (ℝ)':M(`${X} ${RELSYM[p.ans.rel]} ${p.ans.v.h()}`)}
+function correctAns(p){if(p.kind==='mc')return{i:p.correct};if(p.kind==='num')return{n:{v:p.ans.v,exact:true}};
+  if(p.kind==='pair')return{n:p.ans.map(x=>({v:x.v,exact:true}))};return{rel:p.ans.rel,n:p.ans.v?{v:p.ans.v.v,exact:true}:null}}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+
+/* ============ widget de respuesta ============ */
+let UID=0;
+function problemHtml(p,uid){
+  let w='';
+  if(p.kind==='mc')w=`<div class="mc" role="radiogroup">${p.opts.map((o,i)=>`<button type="button" class="opt" role="radio" aria-checked="false" data-i="${i}"><span class="k">${'ABCD'[i]}</span><span>${o}</span></button>`).join('')}</div>`;
+  else if(p.kind==='num')w=`<div class="field"><label for="${uid}-0">${p.label||'Respuesta'}</label><input class="ans" id="${uid}-0" autocomplete="off" spellcheck="false" placeholder="${p.ph||'ej: −5/4 o 7'}"></div>`;
+  else if(p.kind==='pair')w=p.labels.map((l,i)=>`<div class="field"><label for="${uid}-${i}">${l}</label><input class="ans" id="${uid}-${i}" autocomplete="off" spellcheck="false" placeholder="ej: −5/4"></div>`).join('');
+  else if(p.kind==='rel')w=`<div class="relrow"><span class="m" style="font-size:22px"><i>x</i></span><div class="seg" role="group" aria-label="Relación">${['>=','>','<=','<','!=','R'].map(r=>`<button type="button" data-r="${r}" aria-pressed="false">${RELSYM[r]}</button>`).join('')}</div><input class="ans" id="${uid}-0" autocomplete="off" spellcheck="false" placeholder="número"></div>`;
+  const keys=p.kind!=='mc'?`<div class="keys" aria-label="Teclas rápidas"><button type="button" data-ins="-">−</button><button type="button" data-ins="/">/</button></div>`:'';
+  return `<div class="q">${p.q}</div>${p.ex?`<div class="bigx m">${p.ex}</div>`:''}<div class="ansbox">${w}${keys}</div>`}
+function wire(root,p,onEnter){
+  let last=$('input.ans',root);
+  $$('input.ans',root).forEach(i=>{i.addEventListener('focus',()=>last=i);i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();onEnter&&onEnter()}})});
+  $$('[data-ins]',root).forEach(b=>b.addEventListener('click',()=>{if(!last)return;const s=last.selectionStart??last.value.length,e=last.selectionEnd??s;last.value=last.value.slice(0,s)+b.dataset.ins+last.value.slice(e);last.focus();last.setSelectionRange(s+1,s+1)}));
+  $$('.opt',root).forEach(b=>b.addEventListener('click',()=>{if(root.dataset.lock)return;$$('.opt',root).forEach(x=>x.setAttribute('aria-checked','false'));b.setAttribute('aria-checked','true');root.dataset.sel=b.dataset.i}));
+  $$('[data-r]',root).forEach(b=>b.addEventListener('click',()=>{if(root.dataset.lock)return;$$('[data-r]',root).forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');root.dataset.rel=b.dataset.r;const inp=$('input.ans',root);inp.disabled=b.dataset.r==='R';if(b.dataset.r!=='R')inp.focus()}));
+}
+function readAns(root,p){
+  if(p.kind==='mc'){if(root.dataset.sel==null)return null;const i=+root.dataset.sel;return{i,raw:p.opts[i]}}
+  const vals=$$('input.ans',root).map(i=>i.value);
+  if(p.kind==='num'){const n=parseNum(vals[0]);return vals[0].trim()?{n,raw:esc(vals[0])}:null}
+  if(p.kind==='pair'){if(!vals[0].trim()||!vals[1].trim())return null;return{n:vals.map(parseNum),raw:`x = ${esc(vals[0])} · y = ${esc(vals[1])}`}}
+  if(p.kind==='rel'){const rel=root.dataset.rel;if(!rel)return null;if(rel==='R')return{rel,raw:'Todos los reales'};if(!vals[0].trim())return null;return{rel,n:parseNum(vals[0]),raw:`x ${RELSYM[rel]} ${esc(vals[0])}`}}}
+function restore(root,p,a){if(!a)return;
+  if(p.kind==='mc'){const b=$(`.opt[data-i="${a.i}"]`,root);b&&b.click();return}
+  const ins=$$('input.ans',root);
+  if(p.kind==='rel'){$(`[data-r="${a.rel}"]`,root).click();if(a._v!=null)ins[0].value=a._v;return}
+  (a._vals||[]).forEach((v,i)=>{if(ins[i])ins[i].value=v})}
+function readAnsKeep(root,p){const a=readAns(root,p);if(!a)return null;const ins=$$('input.ans',root);a._vals=ins.map(i=>i.value);if(p.kind==='rel')a._v=ins[0].value;return a}
+function lockShow(root,p,a){root.dataset.lock='1';$$('input.ans,[data-r],[data-ins]',root).forEach(x=>x.disabled=true);
+  if(p.kind==='mc')$$('.opt',root).forEach(b=>{const i=+b.dataset.i;if(i===p.correct)b.classList.add('right');else if(a&&a.i===i)b.classList.add('wrong');b.disabled=true})}
+const solHtml=p=>`<ol class="steps">${p.sol.map(s=>`<li>${s}</li>`).join('')}</ol>`;
+
+/* ============ vistas ============ */
+const main=$('#main');
+function nav(){
+  const cur=location.hash.slice(1).replace(/-practica$/,'')||'inicio';
+  let h=`<div class="lbl">Ruta en orden</div>`;
+  LEVELS.forEach(l=>{const s=st(l.id);const pct=s.k;h+=`<a class="step ${cur===l.id?'on':''} ${s.m?'done':''}" href="#${l.id}"><span class="no">${s.m?'✓':l.n}</span><span>${l.sh}<br><span class="st">${s.m?'Dominado':(s.t[0]+s.t[1]+s.t[2]?`Racha exigente ${pct}/${NEED_STREAK}`:l.s)}</span></span></a>`});
+  h+=`<div class="lbl">Al final</div>`;
+  h+=`<a class="step special ${cur==='ronda-final'?'on':''}" href="#ronda-final"><span class="no">★</span><span>Ronda final exigente<br><span class="st">Todo mezclado · récord ${S.fin.best}</span></span></a>`;
+  h+=`<a class="step special ${cur==='simulacro'?'on':''}" href="#simulacro"><span class="no">✎</span><span>Simulacro del examen<br><span class="st">${S.sims.length?`Último: ${S.sims[S.sims.length-1].n.toFixed(1)} / 5.0`:'Con tiempo y nota'}</span></span></a>`;
+  $('#ruta').innerHTML=h;
+  const md=LEVELS.filter(l=>st(l.id).m).length;$('#pMast').textContent=`${md}/${LEVELS.length} dominados`;$('#pMast').className='pill'+(md===LEVELS.length?' ok':'');
+  const on=$('#ruta .on');if(on&&window.matchMedia('(max-width:860px)').matches)on.scrollIntoView({block:'nearest',inline:'center'});
+}
+function clock(){const exam=new Date(2026,10,17,6,45);const ms=exam-Date.now();
+  if(ms<=0){$('#clock').innerHTML='Examen: <b>hoy 6:45 a. m.</b>';return}
+  const h=Math.floor(ms/36e5),m=Math.floor(ms%36e5/6e4);$('#clock').innerHTML=`Examen en <b>${h} h ${m} min</b> · 17 nov, 6:45 a. m.`}
+
+function viewHome(){
+  const next=LEVELS.find(l=>!st(l.id).m);
+  const best=S.sims.length?Math.max(...S.sims.map(s=>s.n)):null;
+  main.innerHTML=`
+  <section class="card">
+    <div class="eyebrow">Última repasada · examen de matemáticas</div>
+    <h1 style="font-size:30px;margin:6px 0 10px">Funciones, sucesiones, probabilidad y límites</h1>
+    <p class="lead">Once niveles en orden: cada uno se apoya en el anterior. En cada nivel lees la receta, miras el ejemplo del tablero y practicas en <b>Exigente</b> hasta acertar ${NEED_STREAK} seguidas. Después, la ronda final mezclada y los simulacros con nota.</p>
+    <div class="row" style="margin-top:14px">
+      ${next?`<a class="btn pri big" href="#${next.id}">${st(next.id).t.some(x=>x)?'Seguir':'Empezar'}: ${next.n}. ${next.sh}</a>`:`<a class="btn pri big" href="#simulacro">Todo dominado · hacer simulacro</a>`}
+      <a class="btn big" href="#simulacro">Ir al simulacro</a>
+    </div>
+  </section>
+  <section class="grid2">
+    <div class="card"><h3 style="margin-bottom:10px">Plan para esta noche</h3>
+      <ol class="recipe">
+        <li><span><b>Ruta 1 → 11</b> (unos 90 min). En cada nivel: Aprende, y luego 3 seguidas bien en Exigente.</span></li>
+        <li><span><b>Ronda final</b>: preguntas exigentes de todo, mezcladas. Lo que falles vuelve a salir.</span></li>
+        <li><span><b>Simulacros</b> de 15 preguntas en 35 min. Repite hasta sacar 4.5 o más dos veces seguidas.</span></li>
+        <li><span>Duerme. Antes de entrar, lee solo la pestaña "Teoría del examen".</span></li>
+      </ol></div>
+    <div class="card"><h3 style="margin-bottom:10px">Cómo vas</h3>
+      <div class="statbar" style="margin-bottom:12px"><span>Dominados <b>${LEVELS.filter(l=>st(l.id).m).length}/${LEVELS.length}</b></span><span>Simulacros <b>${S.sims.length}</b></span><span>Mejor nota <b>${best!=null?best.toFixed(1):'—'}</b></span><span>Récord ronda final <b>${S.fin.best}</b></span></div>
+      <div style="display:flex;flex-direction:column;gap:8px">${LEVELS.map(l=>{const s=st(l.id);const tot=s.t[0]+s.t[1]+s.t[2],ok=s.c[0]+s.c[1]+s.c[2];return `<a href="#${l.id}" style="text-decoration:none;color:inherit;display:grid;grid-template-columns:minmax(0,1fr) 90px 44px;gap:10px;align-items:center;font-size:13px"><span>${l.n}. ${l.sh}</span><span class="bar"><span style="width:${s.m?100:Math.min(100,s.k/NEED_STREAK*100)}%"></span></span><span class="muted" style="font-variant-numeric:tabular-nums;text-align:right">${tot?Math.round(ok/tot*100)+'%':'—'}</span></a>`}).join('')}</div>
+      <p class="muted" style="font-size:12px;margin:12px 0 0">El progreso se guarda en este navegador.</p></div>
+  </section>
+  <section class="card"><h3 style="margin-bottom:8px">Así venía el tablero (y así lo cubre esta app)</h3>
+    <div class="tw"><table class="t"><thead><tr><th>Pregunta del tablero</th><th>Nivel</th></tr></thead><tbody>
+    <tr><td>Procedimiento de la asíntota vertical (teoría)</td><td><a href="#asintotas">6</a> · <a href="#teoria">11</a></td></tr>
+    <tr><td>Cómo buscar la imagen de un valor de x (teoría)</td><td><a href="#imagen">3</a> · <a href="#teoria">11</a></td></tr>
+    <tr><td>Escribir una función radical / identificar la de valor absoluto</td><td><a href="#tipos">2</a></td></tr>
+    <tr><td>Dominio: raíz, logaritmo y fracción</td><td><a href="#dominio">4</a></td></tr>
+    <tr><td>Imagen de x = 3 en y = 4x − 5</td><td><a href="#imagen">3</a></td></tr>
+    <tr><td>Cortes con los ejes de y = 4x + 5</td><td><a href="#interceptos">5</a></td></tr>
+    <tr><td>Asíntota de y = (7x − 2)/(4x − 2)</td><td><a href="#asintotas">6</a></td></tr>
+    <tr><td>Quinto término de aₙ = (5n − 4)/(7n − 1)</td><td><a href="#sucesiones">7</a></td></tr>
+    <tr><td>Probabilidad: 30 estudiantes, 25 cumplen</td><td><a href="#probabilidad">8</a></td></tr>
+    <tr><td>Límites (del PDF): sustitución, 0/0 y las 7 formas indeterminadas</td><td><a href="#limites-sustitucion">9</a> · <a href="#limites-indeterminados">10</a></td></tr>
+    </tbody></table></div></section>`;
+}
+
+function viewLevel(id,tab){
+  const l=LV[id],s=st(id),i=LEVELS.indexOf(l),nx=LEVELS[i+1];
+  const needs=l.needs.length?`<div class="need muted" style="font-size:13px;margin-top:8px">Necesitas antes: ${l.needs.map(n=>`<a href="#${n}">${LV[n].n}. ${LV[n].sh}</a>`).join('')}</div>`:'';
+  main.innerHTML=`<section class="card flat">
+    <div class="eyebrow">Nivel ${l.n} de ${LEVELS.length} ${s.m?'· <span class="pill ok">Dominado</span>':''}</div>
+    <h1 style="font-size:26px;margin:6px 0 4px">${l.t}</h1>${needs}
+    <div class="seg" style="margin-top:14px" role="group" aria-label="Sección">
+      <button type="button" aria-pressed="${tab!=='p'}" data-go="#${id}">Aprende</button>
+      <button type="button" aria-pressed="${tab==='p'}" data-go="#${id}-practica">Practica</button>
+    </div></section><div id="lvbody" style="display:flex;flex-direction:column;gap:16px"></div>`;
+  $$('[data-go]',main).forEach(b=>b.addEventListener('click',()=>location.hash=b.dataset.go));
+  const body=$('#lvbody');
+  if(tab==='p'){viewPractice(body,id);return}
+  const exBlock=(ex,label)=>`<div class="card"><div class="eyebrow">${label}</div><p style="margin:6px 0 10px">${ex.q}</p>
+     <ol class="steps reveal-steps">${ex.steps.map((x,j)=>`<li ${j>0?'hidden':''}>${x}</li>`).join('')}</ol>
+     <div class="row" style="margin-top:12px"><button type="button" class="btn" data-more>Siguiente paso</button><button type="button" class="btn ghost" data-all>Ver todo</button></div></div>`;
+  body.innerHTML=`
+   <div class="card sec"><h3>La idea</h3><p class="idea">${l.idea}</p><p class="muted" style="max-width:65ch;margin:10px 0 0"><b>Por qué:</b> ${l.why}</p></div>
+   ${l.table?`<div class="card sec"><h3>Tabla para tener a mano</h3><div class="tw"><table class="t"><tbody>${l.table.map(r=>`<tr><td><b>${r[0]}</b></td><td class="m">${r[1]}</td><td class="${/<i>|<span/.test(r[2])?'m':''}">${r[2]}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+   <div class="card sec"><h3>Receta paso a paso</h3><ol class="recipe">${l.recipe.map(r=>`<li><span>${r}</span></li>`).join('')}</ol>
+     ${l.examen?`<div class="examen" style="margin-top:14px"><div class="eyebrow">Así se escribe en el examen</div><p style="margin:6px 0 0">${l.examen}</p></div>`:''}</div>
+   ${l.ex?`<div class="grid2">${exBlock(l.ex,'Ejemplo resuelto · intenta antes de ver cada paso')}${l.ex2?exBlock(l.ex2,'Ejemplo exigente'):`<div class="card sec"><h3>Trampas que hacen perder puntos</h3><ul class="traps">${l.traps.map(t=>`<li>${t}</li>`).join('')}</ul></div>`}</div>`:''}
+   ${l.ex2||!l.ex?`<div class="card sec"><h3>Trampas que hacen perder puntos</h3><ul class="traps">${l.traps.map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
+   ${l.cuaderno?`<div class="card sec cuaderno"><h3>Modo cuaderno: escribe y luego destapa</h3>${CUADERNO.map((c,j)=>`<div class="qa"><b>${j+1}. ${c[0]}</b><div><button type="button" class="btn" style="margin-top:8px" data-rev="${j}">Ver respuesta modelo</button></div><div class="mod" hidden id="mod${j}">${c[1]}</div></div>`).join('')}</div>`:''}
+   <div class="card row" style="justify-content:space-between">
+     <a class="btn ghost" href="${yt(l.v)}" target="_blank" rel="noopener">▶ Videos de Julioprofe sobre este tema</a>
+     <a class="btn pri big" href="#${id}-practica">Practicar este tema →</a>
+   </div>`;
+  $$('[data-more]',body).forEach(b=>b.addEventListener('click',()=>{const h=$('li[hidden]',b.closest('.card'));if(h)h.hidden=false;if(!$('li[hidden]',b.closest('.card')))b.disabled=true}));
+  $$('[data-all]',body).forEach(b=>b.addEventListener('click',()=>{$$('li[hidden]',b.closest('.card')).forEach(x=>x.hidden=false);$('[data-more]',b.closest('.card')).disabled=true}));
+  $$('[data-rev]',body).forEach(b=>b.addEventListener('click',()=>{$('#mod'+b.dataset.rev).hidden=false;b.hidden=true}));
+}
+
+function viewPractice(body,id){
+  const l=LV[id];const d=S.diff[id]||3;const i=LEVELS.indexOf(l),nx=LEVELS[i+1];
+  body.innerHTML=`<div class="card row" style="justify-content:space-between">
+     <div class="seg" role="group" aria-label="Dificultad">${['Básico','Medio','Exigente'].map((n,j)=>`<button type="button" data-d="${j+1}" aria-pressed="${d===j+1}">${n}</button>`).join('')}</div>
+     <div class="statbar" id="stbar"></div></div>
+   <div class="card prob" id="pcard"></div>`;
+  $$('[data-d]',body).forEach(b=>b.addEventListener('click',()=>{S.diff[id]=+b.dataset.d;save();viewPractice(body,id)}));
+  const bar=()=>{const s=st(id);$('#stbar').innerHTML=`<span>Aciertos <b>${s.c[d-1]}/${s.t[d-1]}</b> en este nivel</span><span>Racha exigente <b>${s.k}/${NEED_STREAK}</b></span>${s.m?'<span class="pill ok">Dominado</span>':''}`};
+  bar();
+  const card=$('#pcard');
+  const next=()=>{const p=GEN[genKey(id)](d);const uid='p'+(++UID);delete card.dataset.lock;delete card.dataset.sel;delete card.dataset.rel;
+    card.innerHTML=`<div class="tag">${l.t} · ${['Básico','Medio','Exigente'][d-1]}</div>${problemHtml(p,uid)}
+     <div class="row" style="margin-top:14px" id="acts"><button type="button" class="btn pri" id="chk">Revisar</button><button type="button" class="btn ghost" id="hint">Pista</button><button type="button" class="btn ghost" id="idk">No sé, enséñame</button></div><div id="fbx"></div>`;
+    const done=(a,gaveUp)=>{if(card.dataset.lock)return;const ok=!gaveUp&&grade(p,a);lockShow(card,p,a);
+      const s=st(id);s.t[d-1]++;if(ok)s.c[d-1]++;let msg='';
+      if(d===3){s.k=ok?s.k+1:0;if(s.k>=NEED_STREAK&&!s.m){s.m=true;msg=`<p style="margin:8px 0 0"><b>Nivel dominado.</b> ${nx?`Sigue con <a href="#${nx.id}">${nx.n}. ${nx.sh}</a>.`:'Pasa a la <a href="#ronda-final">ronda final</a>.'}</p>`}}
+      save();bar();nav();
+      $('#fbx').innerHTML=`<div class="fb ${ok?'ok':gaveUp?'info':'bad'}"><div class="h">${ok?'Correcto':gaveUp?'Así se hace':'No es así'}</div>
+        ${ok?'':`<div>Respuesta correcta: ${ansHtml(p)}</div>`}${a&&!ok&&!gaveUp?`<div class="muted" style="font-size:13px">Tú pusiste: ${a.raw}</div>`:''}
+        ${ok?`<details><summary>Ver el procedimiento</summary>${solHtml(p)}</details>`:`<div style="margin-top:10px"><b>Procedimiento:</b>${solHtml(p)}</div>`}${msg}</div>`;
+      $('#acts').innerHTML=`<button type="button" class="btn pri" id="nxt">Siguiente ejercicio →</button>${s.m&&nx?`<a class="btn" href="#${nx.id}">Siguiente nivel</a>`:''}`;
+      $('#nxt').addEventListener('click',next);$('#nxt').focus()};
+    const check=()=>{const a=readAns(card,p);if(!a){$('#fbx').innerHTML=`<div class="fb info"><div class="h">Falta tu respuesta</div>${p.kind==='rel'?'Elige el signo (≥, >, ≤, <, ≠ o todos los reales) y escribe el número.':p.kind==='mc'?'Elige una opción.':'Escribe un número. Fracciones con /, por ejemplo −5/4.'}</div>`;return}
+      if((p.kind==='num'&&!a.n)||(p.kind==='pair'&&a.n.some(x=>!x))||(p.kind==='rel'&&a.rel!=='R'&&!a.n)){$('#fbx').innerHTML=`<div class="fb info"><div class="h">No entendí ese número</div>Escribe solo el número: 7, −3, 1/2, −5/4 o 0,25. Sin la x.</div>`;return}
+      done(a,false)};
+    wire(card,p,check);
+    $('#chk').addEventListener('click',check);
+    $('#hint').addEventListener('click',()=>{$('#fbx').innerHTML=`<div class="fb info"><div class="h">Pista</div>${p.hint||p.sol[0]}</div>`});
+    $('#idk').addEventListener('click',()=>done(null,true));
+    const f=$('input.ans',card);if(f&&window.matchMedia('(min-width:861px)').matches)f.focus()};
+  next();
+}
+const genKey=id=>({'limites-sustitucion':'limsus','limites-indeterminados':'lim00'})[id]||id;
+
+/* ronda final */
+let FIN={streak:0,n:0,ok:0,redo:[]};
+function viewFinal(){
+  main.innerHTML=`<section class="card flat"><div class="eyebrow">Al final de la ruta</div><h1 style="font-size:26px;margin:6px 0 6px">Ronda final exigente</h1>
+   <p class="lead muted" style="margin:0">Preguntas de nivel exigente de todos los temas, mezcladas. Lo que falles vuelve a aparecer dos preguntas después, con otros números.</p></section>
+   <div class="card statbar" id="fbar"></div><div class="card prob" id="fcard"></div>`;
+  const ids=LEVELS.filter(l=>l.id!=='bases').map(l=>l.id);
+  const bar=()=>$('#fbar').innerHTML=`<span>Racha <b>${FIN.streak}</b></span><span>Récord <b>${S.fin.best}</b></span><span>Aciertos <b>${FIN.ok}/${FIN.n}</b></span>${FIN.redo.length?`<span class="pill warn">${FIN.redo.length} por repetir</span>`:''}`;
+  bar();const card=$('#fcard');
+  const next=()=>{let id;const due=FIN.redo.findIndex(r=>r.at<=FIN.n);if(due>=0){id=FIN.redo[due].id;FIN.redo.splice(due,1)}else id=pick(ids);
+    const l=LV[id],p=GEN[genKey(id)](3),uid='f'+(++UID);delete card.dataset.lock;delete card.dataset.sel;delete card.dataset.rel;
+    card.innerHTML=`<div class="tag">${l.n}. ${l.t}</div>${problemHtml(p,uid)}<div class="row" style="margin-top:14px" id="facts"><button type="button" class="btn pri" id="fchk">Revisar</button><button type="button" class="btn ghost" id="fidk">No sé</button></div><div id="ffb"></div>`;
+    const done=(a,gave)=>{if(card.dataset.lock)return;const ok=!gave&&grade(p,a);lockShow(card,p,a);FIN.n++;if(ok){FIN.ok++;FIN.streak++;if(FIN.streak>S.fin.best){S.fin.best=FIN.streak;save()}}else{FIN.streak=0;FIN.redo.push({id,at:FIN.n+2})}
+      bar();nav();
+      $('#ffb').innerHTML=`<div class="fb ${ok?'ok':'bad'}"><div class="h">${ok?'Correcto':'Repasa esto'}</div>${ok?'':`<div>Respuesta: ${ansHtml(p)}</div>`}${ok?`<details><summary>Ver el procedimiento</summary>${solHtml(p)}</details>`:solHtml(p)}${ok?'':`<p style="margin:8px 0 0;font-size:13px">Si no te quedó claro, vuelve a <a href="#${id}">${l.sh}</a>.</p>`}</div>`;
+      $('#facts').innerHTML=`<button type="button" class="btn pri" id="fn">Siguiente →</button>`;$('#fn').addEventListener('click',next);$('#fn').focus()};
+    const check=()=>{const a=readAns(card,p);if(!a||(p.kind==='num'&&!a.n)||(p.kind==='pair'&&a.n.some(x=>!x))||(p.kind==='rel'&&a.rel!=='R'&&!a.n)){$('#ffb').innerHTML=`<div class="fb info"><div class="h">Falta tu respuesta</div>Escribe solo el número (7, −3, 1/2) o elige una opción.</div>`;return}done(a,false)};
+    wire(card,p,check);$('#fchk').addEventListener('click',check);$('#fidk').addEventListener('click',()=>done(null,true))};
+  next();
+}
+
+/* simulacro */
+let SIM=null,TICK=null;
+function simItems(hard){const D=()=>hard?3:2;const D2=()=>hard?pick([2,3]):2;
+  return [
+   ['teoria',()=>GEN.teoria(1,'av')],['teoria',()=>GEN.teoria(1,'img')],
+   ['tipos',()=>GEN.tipos(2,'Radical')],['tipos',()=>hard?GEN.tipos(3):GEN.tipos(2,'Valor absoluto')],
+   ['dominio',()=>GEN.dominio(D2(),hard?pick(['raiz','raizNeg']):'raiz')],['dominio',()=>GEN.dominio(D2(),hard?pick(['log','logNeg']):'log')],['dominio',()=>GEN.dominio(D2(),hard?pick(['frac','raizDen','sinCero']):'frac')],
+   ['imagen',()=>GEN.imagen(D())],['interceptos',()=>GEN.interceptos(D())],['asintotas',()=>GEN.asintotas(D(),hard?pick(['general','dos','hueco','mixto']):'general')],
+   ['sucesiones',()=>GEN.sucesiones(D())],['probabilidad',()=>GEN.probabilidad(D())],
+   ['limites-sustitucion',()=>GEN.limsus(D())],['limites-indeterminados',()=>GEN.lim00(D(),hard?pick(['trin','dosTrin','cubo','raiz','raiz2']):pick(['difcuad','trin']))],
+   ['limites-indeterminados',()=>GEN.lim00(3,'formas')]
+  ].map(([id,f])=>({id,p:f(),a:null}))}
+function viewSimStart(){
+  clearInterval(TICK);
+  const hist=S.sims.slice(-8).reverse();
+  main.innerHTML=`<section class="card flat"><div class="eyebrow">Al final de la ruta</div><h1 style="font-size:26px;margin:6px 0 6px">Simulacro del examen</h1>
+   <p class="lead muted" style="margin:0">15 preguntas con la misma estructura del tablero, más límites. 35 minutos. No ves si acertaste hasta entregar. Cada simulacro trae números nuevos.</p></section>
+   <div class="grid2">
+    <div class="card"><h3>Como el tablero</h3><p class="muted">Dificultad media: los mismos tipos de ejercicio que vas a ver mañana.</p><button type="button" class="btn big" id="s2">Empezar simulacro normal</button></div>
+    <div class="card"><h3>Exigente</h3><p class="muted">Signos negativos, trampas, dos asíntotas, huecos y límites con raíces. Si sacas 4.5 aquí, vas sobrado.</p><button type="button" class="btn pri big" id="s3">Empezar simulacro exigente</button></div>
+   </div>
+   ${hist.length?`<div class="card"><h3 style="margin-bottom:8px">Tus simulacros</h3><div class="tw"><table class="t"><thead><tr><th>Hora</th><th>Tipo</th><th>Aciertos</th><th>Nota</th><th>Tiempo</th></tr></thead><tbody>${hist.map(s=>`<tr><td>${new Date(s.t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}</td><td>${s.hard?'Exigente':'Normal'}</td><td style="font-variant-numeric:tabular-nums">${s.c}/${s.tot}</td><td><span class="pill ${s.n>=4.5?'ok':s.n>=3?'warn':'bad'}">${s.n.toFixed(1)}</span></td><td style="font-variant-numeric:tabular-nums">${Math.floor(s.secs/60)}:${String(s.secs%60).padStart(2,'0')}</td></tr>`).join('')}</tbody></table></div></div>`:''}`;
+  $('#s2').addEventListener('click',()=>startSim(false));$('#s3').addEventListener('click',()=>startSim(true));
+}
+function startSim(hard){SIM={hard,items:simItems(hard),i:0,start:Date.now(),dur:35*60,done:false};renderSim()}
+function saveCur(){if(!SIM||SIM.done)return;const card=$('#scard');if(!card)return;const it=SIM.items[SIM.i];it.a=readAnsKeep(card,it.p)}
+function renderSim(){
+  clearInterval(TICK);
+  const it=SIM.items[SIM.i],uid='s'+(++UID);
+  main.innerHTML=`<section class="card row" style="justify-content:space-between"><div><div class="eyebrow">Simulacro ${SIM.hard?'exigente':'normal'}</div><div style="font-weight:600">Pregunta ${SIM.i+1} de ${SIM.items.length}</div></div><div class="timer" id="tm"></div></section>
+   <div class="card"><div class="dots">${SIM.items.map((x,j)=>`<button type="button" class="dot ${x.a?'ans':''} ${j===SIM.i?'cur':''}" data-j="${j}" aria-label="Pregunta ${j+1}">${j+1}</button>`).join('')}</div></div>
+   <div class="card prob" id="scard"><div class="tag">${LV[it.id].t}</div>${problemHtml(it.p,uid)}</div>
+   <div class="row" style="justify-content:space-between"><button type="button" class="btn" id="sp" ${SIM.i===0?'disabled':''}>← Anterior</button>
+     <div class="row">${SIM.i<SIM.items.length-1?`<button type="button" class="btn pri" id="sn">Siguiente →</button>`:''}<button type="button" class="btn ${SIM.i===SIM.items.length-1?'pri':''}" id="se">Entregar</button></div></div><div id="sconf"></div>`;
+  const card=$('#scard');wire(card,it.p,()=>{if(SIM.i<SIM.items.length-1)go(SIM.i+1)});restore(card,it.p,it.a);
+  const go=j=>{saveCur();SIM.i=j;renderSim();window.scrollTo({top:0})};
+  $$('.dot',main).forEach(b=>b.addEventListener('click',()=>go(+b.dataset.j)));
+  $('#sp').addEventListener('click',()=>go(SIM.i-1));$('#sn')&&$('#sn').addEventListener('click',()=>go(SIM.i+1));
+  $('#se').addEventListener('click',()=>{saveCur();const miss=SIM.items.filter(x=>!x.a).length;
+    $('#sconf').innerHTML=`<div class="fb info"><div class="h">¿Entregar?</div>${miss?`Te faltan ${miss} sin responder (cuentan como malas).`:'Respondiste todas.'}<div class="row" style="margin-top:10px"><button type="button" class="btn pri" id="sok">Sí, entregar</button><button type="button" class="btn ghost" id="sno">Seguir revisando</button></div></div>`;
+    $('#sok').addEventListener('click',finishSim);$('#sno').addEventListener('click',()=>$('#sconf').innerHTML='')});
+  const tick=()=>{const left=SIM.dur-Math.floor((Date.now()-SIM.start)/1000);const t=$('#tm');if(!t)return;if(left<=0){saveCur();finishSim();return}
+    t.textContent=`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;t.classList.toggle('low',left<300)};
+  tick();TICK=setInterval(tick,1000);
+  const f=$('input.ans',card);if(f&&window.matchMedia('(min-width:861px)').matches)f.focus();
+}
+function finishSim(){clearInterval(TICK);if(SIM.done)return;SIM.done=true;
+  const secs=Math.min(SIM.dur,Math.floor((Date.now()-SIM.start)/1000));
+  SIM.items.forEach(x=>x.ok=grade(x.p,x.a));const c=SIM.items.filter(x=>x.ok).length,tot=SIM.items.length,n=Math.round(c/tot*50)/10;
+  S.sims.push({t:Date.now(),c,tot,n,secs,hard:SIM.hard});save();nav();
+  const byLv={};SIM.items.forEach(x=>{(byLv[x.id]=byLv[x.id]||{c:0,t:0}).t++;if(x.ok)byLv[x.id].c++});
+  const weak=Object.entries(byLv).filter(([k,v])=>v.c<v.t).map(([k])=>LV[k]);
+  main.innerHTML=`<section class="card"><div class="row" style="justify-content:space-between;align-items:flex-end">
+     <div><div class="eyebrow">Resultado · simulacro ${SIM.hard?'exigente':'normal'}</div><div class="nota" style="color:var(${n>=4.5?'--ok':n>=3?'--warn':'--bad'})">${n.toFixed(1)}</div><div class="muted">${c} de ${tot} correctas · ${Math.floor(secs/60)} min ${secs%60} s · ${n>=3?'aprobado':'no aprobado'} (se aprueba con 3.0)</div></div>
+     <div class="row"><button type="button" class="btn pri big" id="again">Otro simulacro</button><a class="btn big" href="#ronda-final">Ronda final</a></div></div>
+     ${weak.length?`<p style="margin:14px 0 0"><b>Repasa:</b> ${weak.map(l=>`<a href="#${l.id}">${l.sh}</a>`).join(' · ')}</p>`:`<p style="margin:14px 0 0"><b>Perfecto.</b> Haz uno exigente o descansa.</p>`}</section>
+   <section class="card"><h3>Revisión pregunta por pregunta</h3>${SIM.items.map((x,j)=>`<div class="res-item"><div class="row" style="justify-content:space-between"><span class="tag">${j+1}. ${LV[x.id].t}</span><span class="pill ${x.ok?'ok':'bad'}">${x.ok?'Bien':'Mal'}</span></div>
+     <div style="margin-top:6px">${x.p.q}</div>${x.p.ex?`<div class="m" style="font-size:19px;margin:6px 0;overflow-x:auto">${x.p.ex}</div>`:''}
+     <div style="font-size:14px">Tu respuesta: ${x.a?x.a.raw:'<i class="muted">sin responder</i>'}</div>${x.ok?'':`<div style="font-size:14px">Correcta: ${ansHtml(x.p)}</div>`}
+     <details ${x.ok?'':'open'}><summary>Procedimiento</summary>${solHtml(x.p)}</details></div>`).join('')}</section>`;
+  $('#again').addEventListener('click',()=>startSim(SIM.hard));window.scrollTo({top:0});
+}
+
+/* router */
+function route(){
+  const h=location.hash.slice(1)||'inicio';
+  if(SIM&&!SIM.done&&h!=='simulacro'){saveCur()}
+  if(h!=='simulacro')clearInterval(TICK);
+  if(h==='inicio')viewHome();
+  else if(h==='ronda-final')viewFinal();
+  else if(h==='simulacro'){if(SIM&&!SIM.done)renderSim();else viewSimStart()}
+  else if(h.endsWith('-practica')&&LV[h.replace(/-practica$/,'')])viewLevel(h.replace(/-practica$/,''),'p');
+  else if(LV[h])viewLevel(h,'a');
+  else viewHome();
+  nav();window.scrollTo({top:0});
+}
+window.addEventListener('hashchange',route);
+clock();setInterval(clock,30000);route();
+</script>
